@@ -230,4 +230,4 @@ If you use or modify this project, attribution is appreciated.
 
 ## Author
 
-Developed by **HTF SUITE**
+Developed by **MessedupTrader**
