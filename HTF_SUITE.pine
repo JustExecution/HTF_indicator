@@ -1,4 +1,3 @@
-
 //@version=6
 indicator("HTF SUITE", overlay=true, max_bars_back=5000, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
 
@@ -14,6 +13,7 @@ var string GRP_PROJ  = "Orderblock Projections"
 var string GRP_TABLE = "Fractal Model Info Table"
 var string GRP_SMT   = "SMT Divergence"
 var string GRP_SESS  = "Sessions"
+var string GRP_BSL   = "BSL/SSL"
 
 // ============================================================
 // SETTINGS
@@ -219,6 +219,22 @@ sess_show_only_current = input.bool(true, "Show Only Current Day Sessions", grou
      tooltip="When ON: only shows today's sessions. When OFF: shows all unmitigated sessions")
 sess_max_history = input.int(3, "Max Session History", group=GRP_SESS, minval=1, maxval=10,
      tooltip="Maximum number of previous sessions to keep on chart")
+
+
+// ============================================================
+// BSL/SSL SETTINGS
+// ============================================================
+show_bsl_ssl_sec = input.bool(true,  "Show BSL/SSL",        group=GRP_BSL)
+del_old_bsl      = input.bool(true,  "Hide Purged Lines",   group=GRP_BSL)
+max_bsl_lines    = input.int(5,      "Max Lines Per Level", group=GRP_BSL, minval=1, maxval=20)
+bsl_htf_opt_sel  = input.string("Auto", "HTF Selection",   group=GRP_BSL, options=["Auto","Manual"])
+bsl_htf_manual   = input.timeframe("240", "Manual HTF",    group=GRP_BSL)
+bsl_clr_mid      = input.color(color.blue,   "HTF1", group=GRP_BSL, inline="bsl_clr")
+bsl_clr_hi       = input.color(color.black,  "HTF2", group=GRP_BSL, inline="bsl_clr")
+fnt_sz_bsl       = input.string(size.small,  "Text Size",  group=GRP_BSL,
+     options=[size.tiny, size.small, size.normal, size.large], inline="bsl_sty")
+style_bsl_input  = input.string(line.style_solid, "Style", group=GRP_BSL,
+     options=[line.style_solid, line.style_dotted, line.style_dashed], inline="bsl_sty")
 // ============================================================
 // HELPERS
 // ============================================================
@@ -359,6 +375,71 @@ f_true_day_open() =>
 
 
 // ============================================================
+// BSL/SSL HELPER FUNCTIONS
+// ============================================================
+f_bsl_tf_text(string _tf) =>
+    string _text = str.tonumber(_tf) < 59 ? _tf + "m" :
+     str.tonumber(_tf) > 59 ? "h" + str.tostring(math.floor(str.tonumber(_tf) / 60)) : _tf
+    _text := _tf == "1D" ? "D" : _tf == "1W" ? "W" : _tf == "1M" ? "M" : _text
+    _text
+
+f_bsl_add_arr(arr, val) =>
+    array.unshift(arr, val)
+    if array.size(arr) > 100
+        array.pop(arr)
+
+f_bsl_live_mini(string _htf) =>
+    var float _h0    = high
+    var float _l0    = low
+    var float _o0    = open
+    var int   _t0    = time
+    var float _c0    = close
+    var int   _h0bar = time
+    var int   _l0bar = time
+    var float _h1    = high
+    var float _l1    = low
+    var float _o1    = open
+    var int   _t1    = time
+    var float _c1    = close
+    var int   _h1bar = time
+    var int   _l1bar = time
+
+    if timeframe.change(_htf)
+        _t0 := time
+        _o0 := open
+        _h0 := high
+        _l0 := low
+    if high >= _h0
+        _h0    := high
+        _h0bar := time
+    if low <= _l0
+        _l0    := low
+        _l0bar := time
+    if timeframe.change(_htf)
+        _o1    := _o0[1]
+        _h1    := _h0[1]
+        _l1    := _l0[1]
+        _t1    := _t0[1]
+        _c1    := close[1]
+        _h1bar := _h0bar[1]
+        _l1bar := _l0bar[1]
+    _c0 := close
+    [_h1, _l1, _c1, _o1, _t1, _h0, _l0, _c0, _o0, _t0, _h1bar, _l1bar, _h0bar, _l0bar]
+
+// ============================================================
+// BSL/SSL GLOBAL TRACKING ARRAYS
+// (timeframe resolution now happens further below, once htf/htf2
+//  from the fractal-mode engine are available — see "BSL/SSL
+//  TIMEFRAME RESOLUTION (MODE-LINKED)" section)
+// ============================================================
+
+// Shared cross-level cleanup arrays (global, written by f_bsl_ssl, read by cross-level logic)
+var int[] bsl_arr_ht1 = array.new_int()
+var int[] bsl_arr_lt1 = array.new_int()
+var int[] bsl_arr_ht2 = array.new_int()
+var int[] bsl_arr_lt2 = array.new_int()
+
+// ============================================================
 // AUTO FRACTAL MAP — Dual HTF, 5 Modes
 // ============================================================
 int  tf_sec      = timeframe.in_seconds()
@@ -477,6 +558,19 @@ string htf2 =
 
 int htf_ms  = timeframe.in_seconds(htf)  * 1000
 int htf2_ms = timeframe.in_seconds(htf2) * 1000
+
+// ============================================================
+// BSL/SSL TIMEFRAME RESOLUTION (MODE-LINKED)
+// Sourced directly from the fractal-mode engine's htf / htf2
+// (declared immediately above), instead of an independent lookup
+// table. This is why the block sits here rather than earlier —
+// htf and htf2 must already be in scope.
+// Only two levels now: HTF1 (primary) and HTF2 (higher) — matching
+// the HTF overlay candles exactly. The old "Lower TF" chart-period
+// level has been removed.
+// ============================================================
+bsl_tf_primary = bsl_htf_opt_sel == "Auto" ? htf : (timeframe.in_seconds(bsl_htf_manual) >= timeframe.in_seconds(htf2) ? htf : bsl_htf_manual)
+bsl_tf_hi      = htf2
 
 // ============================================================
 // HTF1 DATA — flash-free dual-call pattern (unchanged)
@@ -1034,6 +1128,230 @@ f_draw_first_presented_fvg(int htf_start_t, int htf_end_t) =>
                 string txt = bull_fvg ? "First Bull FVG" : "First Bear FVG"
                 array.push(labels, label.new(right_t, (top + bot) / 2.0, txt, xloc=xloc.bar_time, style=label.style_label_left, color=color.new(color.black, 100), textcolor=first_fvg_label_color, size=model_label_size))
 
+
+// ============================================================
+// BSL/SSL MAIN FUNCTION
+// ============================================================
+f_bsl_ssl(string _htf, color clr, int num) =>
+    [h1, l1, c1, o1, t1, h0, l0, c0, o0, t0, h1bar, l1bar, h0bar, l0bar] = f_bsl_live_mini(_htf)
+
+    var float h2    = high
+    var float l2    = low
+    var float h3    = high
+    var float l3    = low
+    var float h4    = high
+    var float l4    = low
+    var int   h2bar = time
+    var int   l2bar = time
+
+    var line[]  arr_bsl      = array.new_line()
+    var line[]  arr_ssl      = array.new_line()
+    var label[] arr_bslbl    = array.new_label()
+    var label[] arr_sslbl    = array.new_label()
+    var int[]   arr_bsl_trig = array.new_int()
+    var int[]   arr_ssl_trig = array.new_int()
+    var line    bsl_temp     = line.new(na, na, na, na)
+    var line    ssl_temp     = line.new(na, na, na, na)
+    var int     sayh         = 0
+    var int     sayl         = 0
+
+    int   dt   = timeframe.in_seconds(timeframe.period) * 1000
+    color clr_ = show_bsl_ssl_sec ? clr : color.new(clr, 100)
+
+    // Reset at start of each new HTF bar
+    if timeframe.change(_htf)
+        h2    := h1[1]
+        l2    := l1[1]
+        h3    := h2[1]
+        l3    := l2[1]
+        h4    := h3[1]
+        l4    := l3[1]
+        h2bar := h1bar[1]
+        l2bar := l1bar[1]
+        sayh  := 0
+        sayl  := 0
+        line.delete(bsl_temp)
+        line.delete(ssl_temp)
+
+    // Pending unconfirmed BSL temp line
+    if (h1 > h2 and h1 > h0) or (h1 == h2 and h1 > h0 and h2 > h3)
+        bsl_temp := line.new(h1bar, h1, time, h1, xloc=xloc.bar_time,
+             color=clr_, style=line.style_dashed)
+        line.delete(bsl_temp[1])
+
+    // Pending unconfirmed SSL temp line
+    if (l1 < l2 and l1 < l0) or (l1 == l2 and l1 < l0 and l2 < l3)
+        ssl_temp := line.new(l1bar, l1, time, l1, xloc=xloc.bar_time,
+             color=clr_, style=line.style_dashed)
+        line.delete(ssl_temp[1])
+
+    // Confirmed BSL
+    if ((h2 > h3 and h2 > h1) or (h2 == h3 and h2 > h1 and h3 > h4)) and sayh == 0
+        int wid       = c1 < l2 ? 2 : 1
+        line bsl_new  = line.new(h2bar, h2, time + 4*dt, h2, xloc=xloc.bar_time,
+             color=clr_, style=style_bsl_input, width=wid)
+        label bslbl_n = label.new(time + 4*dt, h2, "BSL_" + f_bsl_tf_text(_htf),
+             xloc=xloc.bar_time, color=color.new(color.white, 100),
+             style=label.style_label_left, textcolor=clr, size=fnt_sz_bsl)
+        array.unshift(arr_bsl,      bsl_new)
+        array.unshift(arr_bslbl,    bslbl_n)
+        array.unshift(arr_bsl_trig, 0)
+        sayh := 1
+        if num == 1
+            f_bsl_add_arr(bsl_arr_ht1, h2bar)
+        if num == 2
+            f_bsl_add_arr(bsl_arr_ht2, h2bar)
+
+    // Confirmed SSL
+    if ((l2 < l3 and l2 < l1) or (l2 == l3 and l2 < l1 and l3 < l4)) and sayl == 0
+        int wid       = c1 > h2 ? 2 : 1
+        line ssl_new  = line.new(l2bar, l2, time + 4*dt, l2, xloc=xloc.bar_time,
+             color=clr_, style=style_bsl_input, width=wid)
+        label sslbl_n = label.new(time + 4*dt, l2, "SSL_" + f_bsl_tf_text(_htf),
+             xloc=xloc.bar_time, color=color.new(color.white, 100),
+             style=label.style_label_left, textcolor=clr, size=fnt_sz_bsl)
+        array.unshift(arr_ssl,      ssl_new)
+        array.unshift(arr_sslbl,    sslbl_n)
+        array.unshift(arr_ssl_trig, 0)
+        sayl := 1
+        if num == 1
+            f_bsl_add_arr(bsl_arr_lt1, l2bar)
+        if num == 2
+            f_bsl_add_arr(bsl_arr_lt2, l2bar)
+
+    // BSL purge alert pass
+    if array.size(arr_bsl) > 0
+        for i = array.size(arr_bsl) - 1 to 0
+            line  dln   = array.get(arr_bsl,      i)
+            int   dtrig = array.get(arr_bsl_trig, i)
+            float top   = line.get_y1(dln)
+            if high >= top and high[1] < top and dtrig == 0
+                array.set(arr_bsl_trig, i, 1)
+                alert("BSL purged", alert.freq_once_per_bar)
+                break
+
+    // BSL extend & remove purged
+    if array.size(arr_bsl) > 0
+        for i = array.size(arr_bsl) - 1 to 0
+            line  dln  = array.get(arr_bsl,   i)
+            label dlbl = array.get(arr_bslbl, i)
+            float top  = line.get_y1(dln)
+            if high < top
+                line.set_x2(dln,  time + 4*dt)
+                label.set_x(dlbl, time + 4*dt)
+            if high >= top and high[1] < top
+                label.delete(dlbl)
+                array.remove(arr_bslbl, i)
+                if not del_old_bsl
+                    line.set_x2(dln, time)
+                    if show_bsl_ssl_sec
+                        line.set_color(dln, color.gray)
+                        line.set_style(dln, line.style_dotted)
+                if del_old_bsl
+                    line.delete(dln)
+                array.remove(arr_bsl,      i)
+                array.remove(arr_bsl_trig, i)
+
+    // SSL purge alert pass
+    if array.size(arr_ssl) > 0
+        for i = array.size(arr_ssl) - 1 to 0
+            line  dln   = array.get(arr_ssl,      i)
+            int   dtrig = array.get(arr_ssl_trig, i)
+            float bot   = line.get_y1(dln)
+            if low <= bot and low[1] > bot and dtrig == 0
+                array.set(arr_ssl_trig, i, 1)
+                alert("SSL purged", alert.freq_once_per_bar)
+                break
+
+    // SSL extend & remove purged
+    if array.size(arr_ssl) > 0
+        for i = array.size(arr_ssl) - 1 to 0
+            line  dln  = array.get(arr_ssl,   i)
+            label dlbl = array.get(arr_sslbl, i)
+            float bot  = line.get_y1(dln)
+            if low > bot
+                line.set_x2(dln,  time + 4*dt)
+                label.set_x(dlbl, time + 4*dt)
+            if low <= bot and low[1] > bot
+                label.delete(dlbl)
+                array.remove(arr_sslbl, i)
+                if not del_old_bsl
+                    line.set_x2(dln, time)
+                    if show_bsl_ssl_sec
+                        line.set_color(dln, color.gray)
+                        line.set_style(dln, line.style_dotted)
+                if del_old_bsl
+                    line.delete(dln)
+                array.remove(arr_ssl,      i)
+                array.remove(arr_ssl_trig, i)
+
+    // Enforce max line count
+    if array.size(arr_bsl) > max_bsl_lines
+        for i = array.size(arr_bsl) - 1 to max_bsl_lines
+            line.delete( array.get(arr_bsl,   i))
+            label.delete(array.get(arr_bslbl, i))
+            array.remove(arr_bsl,      i)
+            array.remove(arr_bslbl,    i)
+            array.remove(arr_bsl_trig, i)
+
+    if array.size(arr_ssl) > max_bsl_lines
+        for i = array.size(arr_ssl) - 1 to max_bsl_lines
+            line.delete( array.get(arr_ssl,   i))
+            label.delete(array.get(arr_sslbl, i))
+            array.remove(arr_ssl,      i)
+            array.remove(arr_sslbl,    i)
+            array.remove(arr_ssl_trig, i)
+
+    // Cross-level cleanup: num=0 (lower TF) deleted if bar matches primary or higher TF level
+    if array.size(arr_bsl) > 0 and num == 0
+        for i = array.size(arr_bsl) - 1 to 0
+            line  dln  = array.get(arr_bsl,   i)
+            label dlbl = array.get(arr_bslbl, i)
+            int   dlft = line.get_x1(dln)
+            if array.indexof(bsl_arr_ht1, dlft) > -1 or array.indexof(bsl_arr_ht2, dlft) > -1
+                line.delete(dln)
+                label.delete(dlbl)
+                array.remove(arr_bsl,      i)
+                array.remove(arr_bslbl,    i)
+                array.remove(arr_bsl_trig, i)
+
+    // Cross-level cleanup: num=1 (primary TF) deleted if bar matches higher TF level
+    if array.size(arr_bsl) > 0 and num == 1
+        for i = array.size(arr_bsl) - 1 to 0
+            line  dln  = array.get(arr_bsl,   i)
+            label dlbl = array.get(arr_bslbl, i)
+            int   dlft = line.get_x1(dln)
+            if array.indexof(bsl_arr_ht2, dlft) > -1
+                line.delete(dln)
+                label.delete(dlbl)
+                array.remove(arr_bsl,      i)
+                array.remove(arr_bslbl,    i)
+                array.remove(arr_bsl_trig, i)
+
+    if array.size(arr_ssl) > 0 and num == 0
+        for i = array.size(arr_ssl) - 1 to 0
+            line  dln  = array.get(arr_ssl,   i)
+            label dlbl = array.get(arr_sslbl, i)
+            int   dlft = line.get_x1(dln)
+            if array.indexof(bsl_arr_lt1, dlft) > -1 or array.indexof(bsl_arr_lt2, dlft) > -1
+                line.delete(dln)
+                label.delete(dlbl)
+                array.remove(arr_ssl,      i)
+                array.remove(arr_sslbl,    i)
+                array.remove(arr_ssl_trig, i)
+
+    if array.size(arr_ssl) > 0 and num == 1
+        for i = array.size(arr_ssl) - 1 to 0
+            line  dln  = array.get(arr_ssl,   i)
+            label dlbl = array.get(arr_sslbl, i)
+            int   dlft = line.get_x1(dln)
+            if array.indexof(bsl_arr_lt2, dlft) > -1
+                line.delete(dln)
+                label.delete(dlbl)
+                array.remove(arr_ssl,      i)
+                array.remove(arr_sslbl,    i)
+                array.remove(arr_ssl_trig, i)
+
 // ============================================================
 // MAIN DRAWING
 // ============================================================
@@ -1279,7 +1597,11 @@ if barstate.islast
 
 // ============================================================
 // SMT DIVERGENCE ENGINE — CORRECTED VERSION FOR HTF SUITE
-
+// ============================================================
+// PASTE THIS ENTIRE BLOCK to replace your existing SMT section
+// Find the line: "smt_autoPair = f_smt_pair_registry(smt_ticker)"
+// Delete from there to the end of SMT cleanup
+// Replace with this entire block
 // ============================================================
 
 smt_ticker = str.upper(syminfo.ticker)
@@ -1641,4 +1963,17 @@ f_sess_manage(use_london, london_session, london_txt, london_color, london_boxes
 f_sess_manage(use_ny,     ny_session,     ny_txt,     ny_color,     ny_boxes,     ny_hi,     ny_lo)
 f_true_day_open()
 
-alertcondition(alerts_on, "HTF Rebuild v1.27 Fixed Running", "HTF Rebuild v1.27 Fixed is active")
+
+
+// ============================================================
+// BSL/SSL EXECUTION — runs every bar, independent of HTF Suite model
+// Two levels only: HTF1 (primary/mid color) and HTF2 (higher/hi color),
+// matching the HTF overlay candle pair exactly.
+// ============================================================
+if show_bsl_ssl_sec
+    f_bsl_ssl(bsl_tf_primary, bsl_clr_mid, 1)        // HTF1  (num=1)
+    if bsl_tf_primary != bsl_tf_hi
+        f_bsl_ssl(bsl_tf_hi, bsl_clr_hi, 2)          // HTF2  (num=2)
+
+
+alertcondition(alerts_on, "HTF rebuild", "HTF suite running")
