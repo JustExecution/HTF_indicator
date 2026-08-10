@@ -15,7 +15,6 @@ var string GRP_SMT   = "SMT Divergence"
 var string GRP_SESS  = "Sessions"
 var string GRP_BSL   = "BSL/SSL"
 
-
 // ============================================================
 // SETTINGS
 // ============================================================
@@ -50,15 +49,15 @@ htf_candles      = input.int(4, "HTF Candles", minval=1, maxval=20, group=GRP_HT
 htf_size         = input.string("Small", "Size", options=["Small", "Medium", "Large"], group=GRP_HTF)
 htf_offset       = input.int(0, "Offset", minval=0, maxval=100, group=GRP_HTF)
 
-bull_body   = input.color(color.new(#ffffff, 0),  "Bull Body",   group=GRP_HTF, inline="body")
-bear_body   = input.color(color.new(#636363, 0),  "Bear Body",   group=GRP_HTF, inline="body")
-bull_border = input.color(color.new(#ffffff, 0),  "Bull Border", group=GRP_HTF, inline="border")
-bear_border = input.color(color.new(#636363, 0),  "Bear Border", group=GRP_HTF, inline="border")
-bull_wick   = input.color(color.new(#ffffff, 0),  "Bull Wick",   group=GRP_HTF, inline="wick")
-bear_wick   = input.color(color.new(#636363, 0),  "Bear Wick",   group=GRP_HTF, inline="wick")
+bull_body   = input.color(color.new(#fbfbfb, 0),      "Bull Body",   group=GRP_HTF, inline="body")
+bear_body   = input.color(color.new(color.black, 0),  "Bear Body",   group=GRP_HTF, inline="body")
+bull_border = input.color(color.new(color.gray, 0),   "Bull Border", group=GRP_HTF, inline="border")
+bear_border = input.color(color.new(color.black, 0),  "Bear Border", group=GRP_HTF, inline="border")
+bull_wick   = input.color(color.new(color.gray, 0),   "Bull Wick",   group=GRP_HTF, inline="wick")
+bear_wick   = input.color(color.new(color.gray, 0),   "Bear Wick",   group=GRP_HTF, inline="wick")
 
 show_htf_open  = input.bool(true, "HTF Open", group=GRP_HTF, inline="open")
-htf_open_color = input.color(color.gray, "", group=GRP_HTF, inline="open")
+htf_open_color = input.color(color.new(color.gray, 70), "", group=GRP_HTF, inline="open")
 htf_open_style = input.string("Solid", "", options=["Solid", "Dashed", "Dotted"], group=GRP_HTF, inline="open")
 htf_open_width = input.int(1, "", minval=1, maxval=5, group=GRP_HTF, inline="open")
 
@@ -73,24 +72,17 @@ lh_style = input.string("Dotted", "", options=["Solid", "Dashed", "Dotted"], gro
 lh_width = input.int(1, "", minval=1, maxval=5, group=GRP_HTF, inline="lh")
 
 // ---- HTF2 CANDLE SETTINGS ----
-// HTF2 is now fully optional and independent of the main fractal-mode
-// engine's forced pairing: show_htf2 turns it on/off entirely, and
-// htf2_opt_sel lets the user pick Auto (still mode-driven, via
-// htf2_auto_value below) or Manual (any single timeframe of choice).
-show_htf2          = input.bool(true, "Show HTF2", group=GRP_HTF2, inline="htf2opt")
-htf2_opt_sel       = input.string("Auto", "TF Mode", group=GRP_HTF2, inline="htf2opt", options=["Auto", "Manual"])
-htf2_manual        = input.timeframe("1W", "Manual HTF2 TF", group=GRP_HTF2)
 hide_htf2_candles  = input.bool(false, "Hide?",        group=GRP_HTF2)
 htf2_candles       = input.int(4, "HTF2 Candles",      minval=1, maxval=20, group=GRP_HTF2)
 htf2_size          = input.string("Small", "Size",     options=["Small", "Medium", "Large"], group=GRP_HTF2)
 htf2_gap           = input.int(6, "Gap from HTF1",     minval=0, maxval=50, group=GRP_HTF2)
 
-bull_body2   = input.color(color.new(#ffffff, 0),  "Bull Body",   group=GRP_HTF2, inline="body2")
-bear_body2   = input.color(color.new(#636363, 0),  "Bear Body",   group=GRP_HTF2, inline="body2")
-bull_border2 = input.color(color.new(#ffffff, 0),  "Bull Border", group=GRP_HTF2, inline="border2")
-bear_border2 = input.color(color.new(#636363, 0),  "Bear Border", group=GRP_HTF2, inline="border2")
-bull_wick2   = input.color(color.new(#ffffff, 0),  "Bull Wick",   group=GRP_HTF2, inline="wick2")
-bear_wick2   = input.color(color.new(#636363, 0),  "Bear Wick",   group=GRP_HTF2, inline="wick2")
+bull_body2   = input.color(color.new(color.teal,  0),  "Bull Body",   group=GRP_HTF2, inline="body2")
+bear_body2   = input.color(color.new(#1a237e,     0),  "Bear Body",   group=GRP_HTF2, inline="body2")
+bull_border2 = input.color(color.new(color.teal, 40),  "Bull Border", group=GRP_HTF2, inline="border2")
+bear_border2 = input.color(color.new(#1a237e,    40),  "Bear Border", group=GRP_HTF2, inline="border2")
+bull_wick2   = input.color(color.new(color.teal, 40),  "Bull Wick",   group=GRP_HTF2, inline="wick2")
+bear_wick2   = input.color(color.new(color.gray, 40),  "Bear Wick",   group=GRP_HTF2, inline="wick2")
 
 show_htf2_oc_time = input.bool(true, "O/C Time", group=GRP_HTF2, inline="oc2")
 oc2_color = input.color(color.new(color.teal, 50), "", group=GRP_HTF2, inline="oc2")
@@ -115,12 +107,12 @@ c1_sweep_style = input.string("Solid", "", options=["Solid", "Dashed", "Dotted"]
 c1_sweep_width = input.int(1, "", minval=1, maxval=5, group=GRP_MODEL, inline="c1s2")
 
 show_bull_cisd  = input.bool(true, "Bullish CISD", group=GRP_MODEL, inline="bcisd")
-bull_cisd_color = input.color(#ffffff, "", group=GRP_MODEL, inline="bcisd")
+bull_cisd_color = input.color(color.blue, "", group=GRP_MODEL, inline="bcisd")
 bull_cisd_width = input.int(2, "", minval=1, maxval=5, group=GRP_MODEL, inline="bcisd2")
 bull_cisd_style = input.string("Solid", "", options=["Solid", "Dashed", "Dotted"], group=GRP_MODEL, inline="bcisd2")
 
 show_bear_cisd  = input.bool(true, "Bearish CISD", group=GRP_MODEL, inline="scisd")
-bear_cisd_color = input.color(#636363, "", group=GRP_MODEL, inline="scisd")
+bear_cisd_color = input.color(color.blue, "", group=GRP_MODEL, inline="scisd")
 bear_cisd_width = input.int(2, "", minval=1, maxval=5, group=GRP_MODEL, inline="scisd2")
 bear_cisd_style = input.string("Solid", "", options=["Solid", "Dashed", "Dotted"], group=GRP_MODEL, inline="scisd2")
 
@@ -133,16 +125,16 @@ eq_style = input.string("Dotted", "", options=["Solid", "Dashed", "Dotted"], gro
 eq_width = input.int(1, "", minval=1, maxval=5, group=GRP_MODEL, inline="eq2")
 
 show_tspot         = input.bool(true, "T-Spot", group=GRP_MODEL, inline="tspot")
-tspot_bull_color   = input.color(color.new(#ffffff, 85), "Bullish", group=GRP_MODEL, inline="tspot")
-tspot_bear_color   = input.color(color.new(#636363, 85), "Bearish", group=GRP_MODEL, inline="tspot")
+tspot_bull_color   = input.color(color.new(color.lime, 85), "Bullish", group=GRP_MODEL, inline="tspot")
+tspot_bear_color   = input.color(color.new(color.gray, 85), "Bearish", group=GRP_MODEL, inline="tspot")
 tspot_border_width = input.int(1, "T-Spot Border Width", minval=0, maxval=5, group=GRP_MODEL)
 
 show_first_presented_fvg = input.bool(false, "First Presented FVG", group=GRP_MODEL, inline="fpfvg")
 first_fvg_show_label     = input.bool(true,  "Label",               group=GRP_MODEL, inline="fpfvg")
-first_fvg_bull_fill      = input.color(color.new(#ffffff, 85), "Bull Fill",   group=GRP_MODEL, inline="fpfvg_fill")
-first_fvg_bear_fill      = input.color(color.new(#636363, 85), "Bear Fill",   group=GRP_MODEL, inline="fpfvg_fill")
-first_fvg_bull_border    = input.color(color.new(#ffffff, 0),  "Bull Border", group=GRP_MODEL, inline="fpfvg_border")
-first_fvg_bear_border    = input.color(color.new(#636363, 0),  "Bear Border", group=GRP_MODEL, inline="fpfvg_border")
+first_fvg_bull_fill      = input.color(color.new(color.green, 85), "Bull Fill",   group=GRP_MODEL, inline="fpfvg_fill")
+first_fvg_bear_fill      = input.color(color.new(color.red, 85),   "Bear Fill",   group=GRP_MODEL, inline="fpfvg_fill")
+first_fvg_bull_border    = input.color(color.new(color.green, 0),  "Bull Border", group=GRP_MODEL, inline="fpfvg_border")
+first_fvg_bear_border    = input.color(color.new(color.red, 0),    "Bear Border", group=GRP_MODEL, inline="fpfvg_border")
 first_fvg_label_color    = input.color(color.new(color.black, 0),  "Label Color", group=GRP_MODEL, inline="fpfvg_label")
 first_fvg_border_width   = input.int(1, "Border Width", minval=0, maxval=5, group=GRP_MODEL, inline="fpfvg_label")
 
@@ -193,88 +185,56 @@ smt_secondPair    = input.symbol("CBOT_MINI:YM1!", "Second Comparison Symbol", g
 // ============================================================
 // SESSION SETTINGS
 // ============================================================
-sess_tf_limit   = input.timeframe("30", "Hide Sessions Above TF", group=GRP_SESS, 
-     tooltip="Sessions hidden on timeframes >= this value")
-sess_draw_type  = input.string("Box", "Session Style", group=GRP_SESS, 
-     options=["Box", "Lines"])
-sess_box_transp = input.int(92, "Box Transparency", group=GRP_SESS, minval=0, maxval=100)
-sess_show_label = input.bool(true, "Show Session Label", group=GRP_SESS)
+sess_tf_limit    = input.timeframe("30", "Hide Sessions Above TF", group=GRP_SESS,
+     tooltip="Sessions stop drawing once the chart timeframe reaches or exceeds this value.")
+sess_alert       = input.bool(true, "Alert on Session High/Low Break", group=GRP_SESS)
+sess_draw_style  = input.string("Both", "Style", group=GRP_SESS, options=["Box", "Lines", "Both"],
+     tooltip="Box / Lines / Both. The hi/lo line objects that drive the touch-alert logic always exist.")
+sess_box_transp  = input.int(92, "Box Transparency", group=GRP_SESS, minval=0, maxval=100)
+sess_lbl_size    = input.string("Small", "Label Size", options=["Hide", "Tiny", "Small", "Normal", "Large", "Huge", "Auto"], group=GRP_SESS)
+sess_max_sessions = input.int(3, "Max Past Sessions to Show", group=GRP_SESS, minval=1, maxval=20)
+sess_line_style  = input.string('⎯⎯⎯', 'Line Style', inline='ses_st', group=GRP_SESS, options=['⎯⎯⎯', '----', '····'])
+sess_line_width  = input.int(1, 'Line Width', inline='ses_st', group=GRP_SESS, minval=1, maxval=5)
 
-use_asia        = input.bool(true, "",              group=GRP_SESS, inline="s_asia")
-asia_txt        = input.string("ASIA", "",         group=GRP_SESS, inline="s_asia")
-asia_session    = input.session("2000-0000", "",   group=GRP_SESS, inline="s_asia")
-asia_color      = input.color(color.blue, "",      group=GRP_SESS, inline="s_asia")
+use_asia        = input.bool(true, "Asia", inline="s_asia", group=GRP_SESS)
+asia_session    = input.session("2000-0000", "", inline="s_asia", group=GRP_SESS)
+asia_color      = input.color(color.rgb(238, 181, 107), "", inline="s_asia", group=GRP_SESS)
+asia_hi_txt     = input.string("A.H", "High Label", group=GRP_SESS, inline="s_asia_t")
+asia_lo_txt     = input.string("A.L", "Low Label",  group=GRP_SESS, inline="s_asia_t")
 
-use_london      = input.bool(true, "",             group=GRP_SESS, inline="s_lon")
-london_txt      = input.string("LONDON", "",       group=GRP_SESS, inline="s_lon")
-london_session  = input.session("0200-0500", "",   group=GRP_SESS, inline="s_lon")
-london_color    = input.color(color.red, "",       group=GRP_SESS, inline="s_lon")
+use_london      = input.bool(true, "London", inline="s_lon", group=GRP_SESS)
+london_session  = input.session("0200-0500", "", inline="s_lon", group=GRP_SESS)
+london_color    = input.color(color.rgb(82, 64, 120), "", inline="s_lon", group=GRP_SESS)
+london_hi_txt   = input.string("L.H", "High Label", group=GRP_SESS, inline="s_lon_t")
+london_lo_txt   = input.string("L.L", "Low Label",  group=GRP_SESS, inline="s_lon_t")
 
-use_ny          = input.bool(true, "",             group=GRP_SESS, inline="s_ny")
-ny_txt          = input.string("NY", "",           group=GRP_SESS, inline="s_ny")
-ny_session      = input.session("0930-1100", "",   group=GRP_SESS, inline="s_ny")
-ny_color        = input.color(#089981, "",         group=GRP_SESS, inline="s_ny")
+use_ny          = input.bool(true, "New York", inline="s_ny", group=GRP_SESS)
+ny_session      = input.session("0930-1100", "", inline="s_ny", group=GRP_SESS)
+ny_color        = input.color(color.new(#0b7866, 0), "", inline="s_ny", group=GRP_SESS)
+ny_hi_txt       = input.string("NY.H", "High Label", group=GRP_SESS, inline="s_ny_t")
+ny_lo_txt       = input.string("NY.L", "Low Label",  group=GRP_SESS, inline="s_ny_t")
 
 use_true_open   = input.bool(true, "True Day Open", group=GRP_SESS, inline="s_tdo")
-tdo_show_prev   = input.bool(false, "Show Previous Days", group=GRP_SESS, inline="s_tdo")
-tdo_prev_count  = input.int(1, "Days Back", group=GRP_SESS, inline="s_tdo", minval=1, maxval=20)
-tdo_color       = input.color(color.white, "",     group=GRP_SESS, inline="s_tdo2")
-tdo_style       = input.string("Dashed", "",       group=GRP_SESS, inline="s_tdo2", 
-     options=["Solid", "Dashed", "Dotted"])
-tdo_width       = input.int(1, "",                 group=GRP_SESS, inline="s_tdo2", minval=1, maxval=5)
-
-sess_show_only_current = input.bool(true, "Show Only Current Day Sessions", group=GRP_SESS,
-     tooltip="When ON: only shows today's sessions. When OFF: shows all unmitigated sessions")
-sess_max_history = input.int(3, "Max Session History", group=GRP_SESS, minval=1, maxval=10,
-     tooltip="Maximum number of previous sessions to keep on chart")
+tdo_color       = input.color(color.new(#4c9f51, 0), "", group=GRP_SESS, inline="s_tdo2")
+tdo_style       = input.string("Solid", "",           group=GRP_SESS, inline="s_tdo2", options=["Solid", "Dashed", "Dotted"])
+tdo_width       = input.int(1, "",                    group=GRP_SESS, inline="s_tdo2", minval=1, maxval=5)
+tdo_show_label  = input.bool(true, "Show TDO Label",  group=GRP_SESS)
 
 
 // ============================================================
-// BSL/SSL SETTINGS — single timeframe only, matching
-// cd_indiCATor_Cx's f_bsl_ssl(htf_bssl) approach exactly.
+// BSL/SSL SETTINGS
 // ============================================================
 show_bsl_ssl_sec = input.bool(true,  "Show BSL/SSL",        group=GRP_BSL)
 del_old_bsl      = input.bool(true,  "Hide Purged Lines",   group=GRP_BSL)
 max_bsl_lines    = input.int(5,      "Max Lines Per Level", group=GRP_BSL, minval=1, maxval=20)
 bsl_htf_opt_sel  = input.string("Auto", "HTF Selection",   group=GRP_BSL, options=["Auto","Manual"])
 bsl_htf_manual   = input.timeframe("240", "Manual HTF",    group=GRP_BSL)
-bsl_clr_up       = input.color(#ffffff,   "BSL Color", group=GRP_BSL, inline="bslclr")
-bsl_clr_dn       = input.color(#636363,   "SSL Color", group=GRP_BSL, inline="bslclr")
+bsl_clr_mid      = input.color(color.blue,   "HTF1", group=GRP_BSL, inline="bsl_clr")
+bsl_clr_hi       = input.color(color.black,  "HTF2", group=GRP_BSL, inline="bsl_clr")
 fnt_sz_bsl       = input.string(size.small,  "Text Size",  group=GRP_BSL,
      options=[size.tiny, size.small, size.normal, size.large], inline="bsl_sty")
 style_bsl_input  = input.string(line.style_solid, "Style", group=GRP_BSL,
      options=[line.style_solid, line.style_dotted, line.style_dashed], inline="bsl_sty")
-
-// ============================================================
-// HTF LEVELS — PDH/PDL, PWH/PWL, PMH/PML. Each is an independent
-// toggle with its own fully custom timeframe (not locked to 1D/1W/1M —
-// e.g. you can set "Prev Day" slot to "7H" and turn the other two off).
-// Values are pulled via request.security(...,[high[1],low[1],time[1]])
-// so they always reference the last FULLY CLOSED candle on that TF,
-// never the currently-forming one.
-// ============================================================
-var string GRP_HTFLVL = "HTF Levels"
-
-show_pdhl   = input.bool(true,  "PDH / PDL", group=GRP_HTFLVL, inline="pdhl")
-pdhl_tf     = input.timeframe("1D", "", group=GRP_HTFLVL, inline="pdhl")
-pdh_color   = input.color(#ffffff, "High", group=GRP_HTFLVL, inline="pdhlclr")
-pdl_color   = input.color(#636363, "Low",  group=GRP_HTFLVL, inline="pdhlclr")
-
-show_pwhl   = input.bool(true,  "PWH / PWL", group=GRP_HTFLVL, inline="pwhl")
-pwhl_tf     = input.timeframe("1W", "", group=GRP_HTFLVL, inline="pwhl")
-pwh_color   = input.color(#ffffff, "High", group=GRP_HTFLVL, inline="pwhlclr")
-pwl_color   = input.color(#636363, "Low",  group=GRP_HTFLVL, inline="pwhlclr")
-
-show_pmhl   = input.bool(false, "PMH / PML", group=GRP_HTFLVL, inline="pmhl")
-pmhl_tf     = input.timeframe("1M", "", group=GRP_HTFLVL, inline="pmhl")
-pmh_color   = input.color(#ffffff, "High", group=GRP_HTFLVL, inline="pmhlclr")
-pml_color   = input.color(#636363, "Low",  group=GRP_HTFLVL, inline="pmhlclr")
-
-htflvl_style    = input.string("Dotted", "Line Style", group=GRP_HTFLVL, options=["Solid", "Dashed", "Dotted"])
-htflvl_width    = input.int(1, "Line Width", minval=1, maxval=5, group=GRP_HTFLVL)
-htflvl_extend   = input.int(10, "Label Offset (bars)", minval=1, maxval=50, group=GRP_HTFLVL)
-htflvl_txt_size = input.string(size.small, "Text Size", group=GRP_HTFLVL, options=[size.tiny, size.small, size.normal, size.large])
-
 // ============================================================
 // HELPERS
 // ============================================================
@@ -315,103 +275,183 @@ f_table_position(string p) =>
      p == "Bottom Center" ? position.bottom_center : position.bottom_right
 
 // ============================================================
-// SESSION STATE — must declare before fractal logic
+// SESSION STATE — Sessions PRO engine (kz types)
 // ============================================================
 var string SESS_TZ = "America/New_York"
+var color  SESS_TRANSPARENT = color.new(color.white, 100)
 
-var box[]  asia_boxes   = array.new<box>()
-var line[] asia_hi      = array.new<line>()
-var line[] asia_lo      = array.new<line>()
+type kz
+    string _title
+    array<box>   _box
+    array<line>  _hi_line
+    array<line>  _lo_line
+    array<label> _hi_label
+    array<label> _lo_label
+    array<bool>  _hi_valid
+    array<bool>  _lo_valid
+    float prevHigh       = na
+    float prevLow        = na
+    bool  prevHighActive = false
+    bool  prevLowActive  = false
+    bool  _created       = false
+    int   _created_day   = na
 
-var box[]  london_boxes = array.new<box>()
-var line[] london_hi    = array.new<line>()
-var line[] london_lo    = array.new<line>()
+type kz_helper
+    kz     _kz
+    string session
+    string tz
+    color  c
+    string hi_txt
+    string lo_txt
 
-var box[]  ny_boxes     = array.new<box>()
-var line[] ny_hi        = array.new<line>()
-var line[] ny_lo        = array.new<line>()
+f_new_kz_state(string title) =>
+    kz.new(
+         _title    = title,
+         _box      = array.new_box(),
+         _hi_line  = array.new_line(),
+         _lo_line  = array.new_line(),
+         _hi_label = array.new_label(),
+         _lo_label = array.new_label(),
+         _hi_valid = array.new_bool(),
+         _lo_valid = array.new_bool())
 
-var line[] tdo_lines    = array.new<line>()
-var int[]  tdo_days     = array.new<int>()  // tracks which day each TDO belongs to
+f_init_kz() =>
+    res = array.new<kz_helper>()
+    if use_asia
+        res.push(kz_helper.new(_kz=f_new_kz_state('Asia'),     session=asia_session,   tz=SESS_TZ, c=asia_color,   hi_txt=asia_hi_txt,   lo_txt=asia_lo_txt))
+    if use_london
+        res.push(kz_helper.new(_kz=f_new_kz_state('London'),   session=london_session, tz=SESS_TZ, c=london_color, hi_txt=london_hi_txt, lo_txt=london_lo_txt))
+    if use_ny
+        res.push(kz_helper.new(_kz=f_new_kz_state('New York'), session=ny_session,     tz=SESS_TZ, c=ny_color,     hi_txt=ny_hi_txt,     lo_txt=ny_lo_txt))
+    res
+
+var array<kz_helper> key_zones = f_init_kz()
+
+var line  tdo_line  = na
+var label tdo_label = na
 // ============================================================
-// SESSION HELPER FUNCTIONS
+// SESSION HELPER FUNCTIONS — Sessions PRO engine
 // ============================================================
-f_sess_line_style(string s) =>
-    s == "Dashed" ? line.style_dashed : s == "Dotted" ? line.style_dotted : line.style_solid
+f_sess_text_size(string size) =>
+    switch size
+        "Tiny"   => size.tiny
+        "Small"  => size.small
+        "Normal" => size.normal
+        "Large"  => size.large
+        "Huge"   => size.huge
+        "Auto"   => size.auto
+        => size.small
 
-f_sess_manage(bool use, string sess, string lbl, color col, box[] bx_arr, line[] hi_arr, line[] lo_arr) =>
-    if use and timeframe.in_seconds() < timeframe.in_seconds(sess_tf_limit)
-        bool in_now  = not na(time("", sess, SESS_TZ))
-        bool in_prev = not na(time("", sess, SESS_TZ)[1])
-        color fill   = color.new(col, sess_box_transp)
+f_sess_line_style_mapped(string s) =>
+    switch s
+        '⎯⎯⎯' => line.style_solid
+        '----' => line.style_dashed
+        '····' => line.style_dotted
+        => line.style_solid
 
-        // Session just opened
-        if in_now and not in_prev
-            if sess_draw_type == "Box"
-                bx_arr.unshift(box.new(time, high, time, low, xloc=xloc.bar_time, 
-                     border_color=fill, bgcolor=fill,
-                     text=sess_show_label ? lbl : "",
-                     text_color=color.new(col, 0), text_size=size.small, text_halign=text.align_left))
-                // Cleanup old sessions
-                if sess_show_only_current
-                    while bx_arr.size() > 1
-                        bx_arr.pop().delete()
-                else
-                    while bx_arr.size() > sess_max_history
-                        bx_arr.pop().delete()
+bool sess_box_visible  = sess_draw_style == "Box"   or sess_draw_style == "Both"
+bool sess_line_visible = sess_draw_style == "Lines" or sess_draw_style == "Both"
+
+f_del_kz(kz k) =>
+    if k._box.size() > sess_max_sessions
+        box.delete(k._box.pop())
+    if k._hi_line.size() > sess_max_sessions
+        line.delete(k._hi_line.pop())
+        line.delete(k._lo_line.pop())
+        array.pop(k._hi_valid)
+        array.pop(k._lo_valid)
+    if k._hi_label.size() > sess_max_sessions
+        label.delete(k._hi_label.pop())
+        label.delete(k._lo_label.pop())
+
+method f_adjust_in_kz(kz kz, color c, bool t) =>
+    if t and kz._box.size() > 0
+        kzBox0 = kz._box.get(0)
+        kzBox0.set_right(time)
+        kzBox0.set_top(math.max(kzBox0.get_top(), high))
+        kzBox0.set_bottom(math.min(kzBox0.get_bottom(), low))
+        color box_fill = sess_box_visible ? color.new(c, sess_box_transp) : color.new(c, 100)
+        kzBox0.set_bgcolor(box_fill)
+        kzBox0.set_border_color(box_fill)
+        if kz._hi_line.size() > 0
+            color ln_color = sess_line_visible ? c : color.new(c, 100)
+            kzHiLine0 = kz._hi_line.get(0)
+            kzHiLine0.set_color(ln_color)
+            kzHiLine0.set_x2(bar_index)
+            if high > kzHiLine0.get_y1()
+                kzHiLine0.set_xy1(bar_index, high)
+                kzHiLine0.set_xy2(bar_index, high)
+            kzLoLine0 = kz._lo_line.get(0)
+            kzLoLine0.set_color(ln_color)
+            kzLoLine0.set_x2(bar_index)
+            if low < kzLoLine0.get_y1()
+                kzLoLine0.set_xy1(bar_index, low)
+                kzLoLine0.set_xy2(bar_index, low)
+        if kz._hi_label.size() > 0
+            color lbl_color = sess_lbl_size != "Hide" ? c : SESS_TRANSPARENT
+            kz._hi_label.get(0).set_textcolor(lbl_color)
+            kz._lo_label.get(0).set_textcolor(lbl_color)
+            if high > kz._hi_label.get(0).get_y()
+                kz._hi_label.get(0).set_xy(time, high)
+            if low < kz._lo_label.get(0).get_y()
+                kz._lo_label.get(0).set_xy(time, low)
+
+method f_adjust_out_kz(kz kz, bool t) =>
+    boxCount = kz._box.size()
+    if not t and boxCount > 0
+        for i = 0 to boxCount - 1 by 1
+            if i == 0
+                if kz._hi_valid.get(i)
+                    kz._hi_line.get(i).set_x2(bar_index)
+                    kz._hi_label.get(i).set_x(time)
+                    if high >= kz._hi_line.get(i).get_y1()
+                        kz._hi_valid.set(i, false)
+                        kz._hi_label.get(i).set_x(time[3])
+                        if sess_alert
+                            alert(kz._title + ' High Touched', alert.freq_once_per_bar)
+                if kz._lo_valid.get(i)
+                    kz._lo_line.get(i).set_x2(bar_index)
+                    kz._lo_label.get(i).set_x(time)
+                    if low <= kz._lo_line.get(i).get_y1()
+                        kz._lo_valid.set(i, false)
+                        kz._lo_label.get(i).set_x(time[3])
+                        if sess_alert
+                            alert(kz._title + " Low Touched", alert.freq_once_per_bar)
             else
-                hi_arr.unshift(line.new(time, high, time, high, xloc=xloc.bar_time, color=col, width=1))
-                lo_arr.unshift(line.new(time, low, time, low, xloc=xloc.bar_time, color=col, width=1))
-                // Cleanup old lines
-                if sess_show_only_current
-                    while hi_arr.size() > 1
-                        hi_arr.pop().delete()
-                        lo_arr.pop().delete()
-                else
-                    while hi_arr.size() > sess_max_history
-                        hi_arr.pop().delete()
-                        lo_arr.pop().delete()
+                break
 
-        // Session is open: expand drawing
-        if in_now
-            if sess_draw_type == "Box" and bx_arr.size() > 0
-                b = bx_arr.get(0)
-                b.set_right(time)
-                b.set_top(math.max(b.get_top(), high))
-                b.set_bottom(math.min(b.get_bottom(), low))
-            else if sess_draw_type == "Lines" and hi_arr.size() > 0
-                h_ln = hi_arr.get(0)
-                l_ln = lo_arr.get(0)
-                h_ln.set_x2(time)
-                l_ln.set_x2(time)
-                if high > h_ln.get_y1()
-                    h_ln.set_xy1(time, high)
-                    h_ln.set_xy2(time, high)
-                if low < l_ln.get_y1()
-                    l_ln.set_xy1(time, low)
-                    l_ln.set_xy2(time, low)
-f_true_day_open() =>
-    if use_true_open and timeframe.in_seconds() < timeframe.in_seconds(sess_tf_limit)
-        bool is_midnight  = not na(time("", "0000-0001", SESS_TZ))
-        bool was_midnight = not na(time("", "0000-0001", SESS_TZ)[1])
-        int current_day = dayofmonth(time, SESS_TZ)
-        
-        // New day detected
-        if is_midnight and not was_midnight
-            tdo_lines.unshift(line.new(time, open, time, open, xloc=xloc.bar_time, 
-                 color=tdo_color, style=f_sess_line_style(tdo_style), width=tdo_width))
-            tdo_days.unshift(current_day)
-            
-            // Cleanup: keep only current + user-selected previous days
-            int keep_count = 1 + (tdo_show_prev ? tdo_prev_count : 0)
-            if tdo_lines.size() > keep_count
-                tdo_lines.pop().delete()
-                tdo_days.pop()
-        
-        // Extend all active TDO lines to current bar
-        if tdo_lines.size() > 0
-            for i = 0 to tdo_lines.size() - 1
-                tdo_lines.get(i).set_x2(time)
+method f_manage_kz(kz_helper this) =>
+    kz k        = this._kz
+    color c     = this.c
+    string hi_t = this.hi_txt
+    string lo_t = this.lo_txt
+
+    if timeframe.in_seconds() < timeframe.in_seconds(sess_tf_limit)
+        bool t        = not na(time("", this.session, this.tz))
+        int  sess_day = dayofmonth(time, this.tz)
+
+        if k._created and sess_day != k._created_day
+            k._created := false
+
+        if t and (not k._created or k._box.size() == 0)
+            color box_fill = sess_box_visible ? color.new(c, sess_box_transp) : color.new(c, 100)
+            k._box.unshift(box.new(time, high, time, low, xloc=xloc.bar_time, border_color=box_fill, bgcolor=box_fill, text_color=na))
+            color ln_color = sess_line_visible ? c : color.new(c, 100)
+            k._hi_line.unshift(line.new(bar_index, high, bar_index, high, xloc=xloc.bar_index, style=f_sess_line_style_mapped(sess_line_style), color=ln_color, width=sess_line_width))
+            k._lo_line.unshift(line.new(bar_index, low,  bar_index, low,  xloc=xloc.bar_index, style=f_sess_line_style_mapped(sess_line_style), color=ln_color, width=sess_line_width))
+            array.unshift(k._hi_valid, true)
+            array.unshift(k._lo_valid, true)
+            color lbl_color = sess_lbl_size != "Hide" ? c : SESS_TRANSPARENT
+            k._hi_label.unshift(label.new(time, high, hi_t, xloc=xloc.bar_time, color=SESS_TRANSPARENT, textcolor=lbl_color, style=label.style_label_down, size=f_sess_text_size(sess_lbl_size), text_font_family=font.family_monospace))
+            k._lo_label.unshift(label.new(time, low,  lo_t, xloc=xloc.bar_time, color=SESS_TRANSPARENT, textcolor=lbl_color, style=label.style_label_up,   size=f_sess_text_size(sess_lbl_size), text_font_family=font.family_monospace))
+            f_del_kz(k)
+            k._created     := true
+            k._created_day := sess_day
+
+        f_adjust_in_kz(k, c, t)
+        f_adjust_out_kz(k, t)
+
+
 
 
 // ============================================================
@@ -422,6 +462,11 @@ f_bsl_tf_text(string _tf) =>
      str.tonumber(_tf) > 59 ? "h" + str.tostring(math.floor(str.tonumber(_tf) / 60)) : _tf
     _text := _tf == "1D" ? "D" : _tf == "1W" ? "W" : _tf == "1M" ? "M" : _text
     _text
+
+f_bsl_add_arr(arr, val) =>
+    array.unshift(arr, val)
+    if array.size(arr) > 100
+        array.pop(arr)
 
 f_bsl_live_mini(string _htf) =>
     var float _h0    = high
@@ -461,8 +506,18 @@ f_bsl_live_mini(string _htf) =>
     _c0 := close
     [_h1, _l1, _c1, _o1, _t1, _h0, _l0, _c0, _o0, _t0, _h1bar, _l1bar, _h0bar, _l0bar]
 
-// Cross-level cleanup arrays removed — no longer needed with a
-// single BSL/SSL timeframe (nothing to de-duplicate against).
+// ============================================================
+// BSL/SSL GLOBAL TRACKING ARRAYS
+// (timeframe resolution now happens further below, once htf/htf2
+//  from the fractal-mode engine are available — see "BSL/SSL
+//  TIMEFRAME RESOLUTION (MODE-LINKED)" section)
+// ============================================================
+
+// Shared cross-level cleanup arrays (global, written by f_bsl_ssl, read by cross-level logic)
+var int[] bsl_arr_ht1 = array.new_int()
+var int[] bsl_arr_lt1 = array.new_int()
+var int[] bsl_arr_ht2 = array.new_int()
+var int[] bsl_arr_lt2 = array.new_int()
 
 // ============================================================
 // AUTO FRACTAL MAP — Dual HTF, 5 Modes
@@ -568,11 +623,6 @@ string swing_htf2 =
 
 // ----------------------------------------------------------------
 // RESOLVE ACTIVE PAIR
-// HTF1 stays fully driven by fractal_mode, as before. HTF2 is now
-// independent: Auto uses the mode-driven value (htf2_auto_value) so
-// switching fractal_mode still adjusts HTF2 sensibly, Manual lets
-// the user pick any single TF, and show_htf2 controls whether it's
-// used/drawn at all.
 // ----------------------------------------------------------------
 string htf =
  fractal_mode == "Custom"   ? custom_htf  :
@@ -580,35 +630,27 @@ string htf =
  fractal_mode == "Scalp"    ? scalp_htf1  :
  fractal_mode == "Swing"    ? swing_htf1  : auto_htf1
 
-string htf2_auto_value =
+string htf2 =
  fractal_mode == "Custom"   ? custom_htf2 :
  fractal_mode == "Intraday" ? intra_htf2  :
  fractal_mode == "Scalp"    ? scalp_htf2  :
  fractal_mode == "Swing"    ? swing_htf2  : auto_htf2
 
-string htf2 = htf2_opt_sel == "Auto" ? htf2_auto_value : htf2_manual
-
 int htf_ms  = timeframe.in_seconds(htf)  * 1000
 int htf2_ms = timeframe.in_seconds(htf2) * 1000
 
 // ============================================================
-// HTF LEVELS DATA — previous CLOSED candle only (index [1]), on
-// each level's own independent, user-set timeframe. Runs every
-// bar (unconditionally) so the series stays properly synced —
-// this must NOT be called only inside `if barstate.islast`.
+// BSL/SSL TIMEFRAME RESOLUTION (MODE-LINKED)
+// Sourced directly from the fractal-mode engine's htf / htf2
+// (declared immediately above), instead of an independent lookup
+// table. This is why the block sits here rather than earlier —
+// htf and htf2 must already be in scope.
+// Only two levels now: HTF1 (primary) and HTF2 (higher) — matching
+// the HTF overlay candles exactly. The old "Lower TF" chart-period
+// level has been removed.
 // ============================================================
-[pd_h1, pd_l1, pd_t1] = request.security(syminfo.tickerid, pdhl_tf, [high[1], low[1], time[1]], lookahead=barmerge.lookahead_on)
-[pw_h1, pw_l1, pw_t1] = request.security(syminfo.tickerid, pwhl_tf, [high[1], low[1], time[1]], lookahead=barmerge.lookahead_on)
-[pm_h1, pm_l1, pm_t1] = request.security(syminfo.tickerid, pmhl_tf, [high[1], low[1], time[1]], lookahead=barmerge.lookahead_on)
-
-// ============================================================
-// BSL/SSL TIMEFRAME RESOLUTION — single TF only
-// Matches cd_indiCATor_Cx's approach exactly: BSL/SSL runs on one
-// timeframe (htf / HTF1), completely independent of the HTF2
-// overlay candle. Manual mode lets the user override htf directly,
-// same pattern as the reference's htfbssl resolution.
-// ============================================================
-bsl_tf = bsl_htf_opt_sel == "Auto" ? htf : (timeframe.in_seconds(bsl_htf_manual) >= timeframe.in_seconds(timeframe.period) ? bsl_htf_manual : htf)
+bsl_tf_primary = bsl_htf_opt_sel == "Auto" ? htf : (timeframe.in_seconds(bsl_htf_manual) >= timeframe.in_seconds(htf2) ? htf : bsl_htf_manual)
+bsl_tf_hi      = htf2
 
 // ============================================================
 // HTF1 DATA — flash-free dual-call pattern (unchanged)
@@ -672,10 +714,7 @@ array.set(arr_o, 18, o18), array.set(arr_h, 18, h18), array.set(arr_l, 18, l18),
 array.set(arr_o, 19, o19), array.set(arr_h, 19, h19), array.set(arr_l, 19, l19), array.set(arr_c, 19, c19), array.set(arr_t, 19, t19)
 
 // ============================================================
-// HTF2 DATA — identical flash-free pattern, separate security call.
-// The request.security call itself always runs (Pine requires a
-// stable call count across bars); show_htf2 gates only the drawing
-// further below, keeping HTF2 fully optional visually.
+// HTF2 DATA — identical flash-free pattern, separate security call
 // ============================================================
 bool new_htf2_bar = timeframe.change(htf2)
 var float htf2_o0 = na
@@ -1171,9 +1210,9 @@ f_draw_first_presented_fvg(int htf_start_t, int htf_end_t) =>
 
 
 // ============================================================
-// BSL/SSL MAIN FUNCTION — single timeframe, separate BSL/SSL colors
+// BSL/SSL MAIN FUNCTION
 // ============================================================
-f_bsl_ssl(string _htf, color clr_bsl, color clr_ssl) =>
+f_bsl_ssl(string _htf, color clr, int num) =>
     [h1, l1, c1, o1, t1, h0, l0, c0, o0, t0, h1bar, l1bar, h0bar, l0bar] = f_bsl_live_mini(_htf)
 
     var float h2    = high
@@ -1196,9 +1235,8 @@ f_bsl_ssl(string _htf, color clr_bsl, color clr_ssl) =>
     var int     sayh         = 0
     var int     sayl         = 0
 
-    int   dt        = timeframe.in_seconds(timeframe.period) * 1000
-    color clr_bsl_  = show_bsl_ssl_sec ? clr_bsl : color.new(clr_bsl, 100)
-    color clr_ssl_  = show_bsl_ssl_sec ? clr_ssl : color.new(clr_ssl, 100)
+    int   dt   = timeframe.in_seconds(timeframe.period) * 1000
+    color clr_ = show_bsl_ssl_sec ? clr : color.new(clr, 100)
 
     // Reset at start of each new HTF bar
     if timeframe.change(_htf)
@@ -1218,40 +1256,48 @@ f_bsl_ssl(string _htf, color clr_bsl, color clr_ssl) =>
     // Pending unconfirmed BSL temp line
     if (h1 > h2 and h1 > h0) or (h1 == h2 and h1 > h0 and h2 > h3)
         bsl_temp := line.new(h1bar, h1, time, h1, xloc=xloc.bar_time,
-             color=clr_bsl_, style=line.style_dashed)
+             color=clr_, style=line.style_dashed)
         line.delete(bsl_temp[1])
 
     // Pending unconfirmed SSL temp line
     if (l1 < l2 and l1 < l0) or (l1 == l2 and l1 < l0 and l2 < l3)
         ssl_temp := line.new(l1bar, l1, time, l1, xloc=xloc.bar_time,
-             color=clr_ssl_, style=line.style_dashed)
+             color=clr_, style=line.style_dashed)
         line.delete(ssl_temp[1])
 
     // Confirmed BSL
     if ((h2 > h3 and h2 > h1) or (h2 == h3 and h2 > h1 and h3 > h4)) and sayh == 0
         int wid       = c1 < l2 ? 2 : 1
         line bsl_new  = line.new(h2bar, h2, time + 4*dt, h2, xloc=xloc.bar_time,
-             color=clr_bsl_, style=style_bsl_input, width=wid)
+             color=clr_, style=style_bsl_input, width=wid)
         label bslbl_n = label.new(time + 4*dt, h2, "BSL_" + f_bsl_tf_text(_htf),
              xloc=xloc.bar_time, color=color.new(color.white, 100),
-             style=label.style_label_left, textcolor=clr_bsl, size=fnt_sz_bsl)
+             style=label.style_label_left, textcolor=clr, size=fnt_sz_bsl)
         array.unshift(arr_bsl,      bsl_new)
         array.unshift(arr_bslbl,    bslbl_n)
         array.unshift(arr_bsl_trig, 0)
         sayh := 1
+        if num == 1
+            f_bsl_add_arr(bsl_arr_ht1, h2bar)
+        if num == 2
+            f_bsl_add_arr(bsl_arr_ht2, h2bar)
 
     // Confirmed SSL
     if ((l2 < l3 and l2 < l1) or (l2 == l3 and l2 < l1 and l3 < l4)) and sayl == 0
         int wid       = c1 > h2 ? 2 : 1
         line ssl_new  = line.new(l2bar, l2, time + 4*dt, l2, xloc=xloc.bar_time,
-             color=clr_ssl_, style=style_bsl_input, width=wid)
+             color=clr_, style=style_bsl_input, width=wid)
         label sslbl_n = label.new(time + 4*dt, l2, "SSL_" + f_bsl_tf_text(_htf),
              xloc=xloc.bar_time, color=color.new(color.white, 100),
-             style=label.style_label_left, textcolor=clr_ssl, size=fnt_sz_bsl)
+             style=label.style_label_left, textcolor=clr, size=fnt_sz_bsl)
         array.unshift(arr_ssl,      ssl_new)
         array.unshift(arr_sslbl,    sslbl_n)
         array.unshift(arr_ssl_trig, 0)
         sayl := 1
+        if num == 1
+            f_bsl_add_arr(bsl_arr_lt1, l2bar)
+        if num == 2
+            f_bsl_add_arr(bsl_arr_lt2, l2bar)
 
     // BSL purge alert pass
     if array.size(arr_bsl) > 0
@@ -1336,6 +1382,56 @@ f_bsl_ssl(string _htf, color clr_bsl, color clr_ssl) =>
             array.remove(arr_sslbl,    i)
             array.remove(arr_ssl_trig, i)
 
+    // Cross-level cleanup: num=0 (lower TF) deleted if bar matches primary or higher TF level
+    if array.size(arr_bsl) > 0 and num == 0
+        for i = array.size(arr_bsl) - 1 to 0
+            line  dln  = array.get(arr_bsl,   i)
+            label dlbl = array.get(arr_bslbl, i)
+            int   dlft = line.get_x1(dln)
+            if array.indexof(bsl_arr_ht1, dlft) > -1 or array.indexof(bsl_arr_ht2, dlft) > -1
+                line.delete(dln)
+                label.delete(dlbl)
+                array.remove(arr_bsl,      i)
+                array.remove(arr_bslbl,    i)
+                array.remove(arr_bsl_trig, i)
+
+    // Cross-level cleanup: num=1 (primary TF) deleted if bar matches higher TF level
+    if array.size(arr_bsl) > 0 and num == 1
+        for i = array.size(arr_bsl) - 1 to 0
+            line  dln  = array.get(arr_bsl,   i)
+            label dlbl = array.get(arr_bslbl, i)
+            int   dlft = line.get_x1(dln)
+            if array.indexof(bsl_arr_ht2, dlft) > -1
+                line.delete(dln)
+                label.delete(dlbl)
+                array.remove(arr_bsl,      i)
+                array.remove(arr_bslbl,    i)
+                array.remove(arr_bsl_trig, i)
+
+    if array.size(arr_ssl) > 0 and num == 0
+        for i = array.size(arr_ssl) - 1 to 0
+            line  dln  = array.get(arr_ssl,   i)
+            label dlbl = array.get(arr_sslbl, i)
+            int   dlft = line.get_x1(dln)
+            if array.indexof(bsl_arr_lt1, dlft) > -1 or array.indexof(bsl_arr_lt2, dlft) > -1
+                line.delete(dln)
+                label.delete(dlbl)
+                array.remove(arr_ssl,      i)
+                array.remove(arr_sslbl,    i)
+                array.remove(arr_ssl_trig, i)
+
+    if array.size(arr_ssl) > 0 and num == 1
+        for i = array.size(arr_ssl) - 1 to 0
+            line  dln  = array.get(arr_ssl,   i)
+            label dlbl = array.get(arr_sslbl, i)
+            int   dlft = line.get_x1(dln)
+            if array.indexof(bsl_arr_lt2, dlft) > -1
+                line.delete(dln)
+                label.delete(dlbl)
+                array.remove(arr_ssl,      i)
+                array.remove(arr_sslbl,    i)
+                array.remove(arr_ssl_trig, i)
+
 // ============================================================
 // MAIN DRAWING
 // ============================================================
@@ -1392,9 +1488,8 @@ if barstate.islast
 
     // ----------------------------------------------------------
     // HTF2 projected candles  (to the right of HTF1 cluster)
-    // Gated by show_htf2 — fully optional, independent toggle.
     // ----------------------------------------------------------
-    if show_htf2 and not hide_htf2_candles
+    if not hide_htf2_candles
         int num2      = math.min(htf2_candles, 20)
         int candle2_w = htf2_size == "Large" ? 5 : htf2_size == "Medium" ? 3 : 1
         int step2     = candle2_w + 2
@@ -1551,34 +1646,6 @@ if barstate.islast
                 f_label(f_mid_time(c4t, htf_ms), bearish ? c4h : c4l, "C4", state_col, true)
 
         setups_drawn += 1
-
-    // ----------------------------------------------------------
-    // HTF Levels — PDH/PDL, PWH/PWL, PMH/PML. Each line is anchored
-    // at pd_t1/pw_t1/pm_t1 — the START of the previous, fully closed
-    // candle on that level's timeframe — and extends forward to
-    // time + offset. This fixes the old bug where lines were anchored
-    // to the currently-forming candle's start time instead.
-    // ----------------------------------------------------------
-    if show_pdhl or show_pwhl or show_pmhl
-        int htflvl_dt = timeframe.in_seconds(timeframe.period) * 1000
-
-        if show_pdhl and not na(pd_h1) and not na(pd_l1) and not na(pd_t1)
-            array.push(lines, line.new(pd_t1, pd_h1, time + htflvl_extend * htflvl_dt, pd_h1, xloc=xloc.bar_time, color=pdh_color, width=htflvl_width, style=f_style(htflvl_style)))
-            array.push(labels, label.new(time + htflvl_extend * htflvl_dt, pd_h1, "P" + f_tf_label(pdhl_tf) + "H", xloc=xloc.bar_time, style=label.style_label_left, color=color.new(color.black, 100), textcolor=pdh_color, size=htflvl_txt_size))
-            array.push(lines, line.new(pd_t1, pd_l1, time + htflvl_extend * htflvl_dt, pd_l1, xloc=xloc.bar_time, color=pdl_color, width=htflvl_width, style=f_style(htflvl_style)))
-            array.push(labels, label.new(time + htflvl_extend * htflvl_dt, pd_l1, "P" + f_tf_label(pdhl_tf) + "L", xloc=xloc.bar_time, style=label.style_label_left, color=color.new(color.black, 100), textcolor=pdl_color, size=htflvl_txt_size))
-
-        if show_pwhl and not na(pw_h1) and not na(pw_l1) and not na(pw_t1)
-            array.push(lines, line.new(pw_t1, pw_h1, time + htflvl_extend * htflvl_dt, pw_h1, xloc=xloc.bar_time, color=pwh_color, width=htflvl_width, style=f_style(htflvl_style)))
-            array.push(labels, label.new(time + htflvl_extend * htflvl_dt, pw_h1, "P" + f_tf_label(pwhl_tf) + "H", xloc=xloc.bar_time, style=label.style_label_left, color=color.new(color.black, 100), textcolor=pwh_color, size=htflvl_txt_size))
-            array.push(lines, line.new(pw_t1, pw_l1, time + htflvl_extend * htflvl_dt, pw_l1, xloc=xloc.bar_time, color=pwl_color, width=htflvl_width, style=f_style(htflvl_style)))
-            array.push(labels, label.new(time + htflvl_extend * htflvl_dt, pw_l1, "P" + f_tf_label(pwhl_tf) + "L", xloc=xloc.bar_time, style=label.style_label_left, color=color.new(color.black, 100), textcolor=pwl_color, size=htflvl_txt_size))
-
-        if show_pmhl and not na(pm_h1) and not na(pm_l1) and not na(pm_t1)
-            array.push(lines, line.new(pm_t1, pm_h1, time + htflvl_extend * htflvl_dt, pm_h1, xloc=xloc.bar_time, color=pmh_color, width=htflvl_width, style=f_style(htflvl_style)))
-            array.push(labels, label.new(time + htflvl_extend * htflvl_dt, pm_h1, "P" + f_tf_label(pmhl_tf) + "H", xloc=xloc.bar_time, style=label.style_label_left, color=color.new(color.black, 100), textcolor=pmh_color, size=htflvl_txt_size))
-            array.push(lines, line.new(pm_t1, pm_l1, time + htflvl_extend * htflvl_dt, pm_l1, xloc=xloc.bar_time, color=pml_color, width=htflvl_width, style=f_style(htflvl_style)))
-            array.push(labels, label.new(time + htflvl_extend * htflvl_dt, pm_l1, "P" + f_tf_label(pmhl_tf) + "L", xloc=xloc.bar_time, style=label.style_label_left, color=color.new(color.black, 100), textcolor=pml_color, size=htflvl_txt_size))
 
     // ----------------------------------------------------------
     // Global CISD lines
@@ -1959,7 +2026,7 @@ if show_info_table
     if na(info_tbl)
         info_tbl := table.new(f_table_position(table_pos), 1, 1, bgcolor=table_bg_color, frame_width=0, border_width=0)
 
-    string tf_row        = show_htf2 ? f_tf_label(timeframe.period) + " / " + f_tf_label(htf) + " / " + f_tf_label(htf2) : f_tf_label(timeframe.period) + " / " + f_tf_label(htf)
+    string tf_row        = f_tf_label(timeframe.period) + " / " + f_tf_label(htf) + " / " + f_tf_label(htf2)
     string countdown_row = f_countdown_string(t0 + htf_ms)
     string date_row      = f_date_string(timenow)
     string info_text     = str.format("{0}\n{1}\n{2}\n{3}\n{4}\n{5}", syminfo.ticker, tf_row, bias, countdown_row, date_row, smt_status)
@@ -1969,21 +2036,45 @@ if show_info_table
 
 
 // ============================================================
-// SESSION DRAWINGS — Execute Every Bar
+// SESSION DRAWINGS — Execute Every Bar (Sessions PRO engine)
 // ============================================================
-f_sess_manage(use_asia,   asia_session,   asia_txt,   asia_color,   asia_boxes,   asia_hi,   asia_lo)
-f_sess_manage(use_london, london_session, london_txt, london_color, london_boxes, london_hi, london_lo)
-f_sess_manage(use_ny,     ny_session,     ny_txt,     ny_color,     ny_boxes,     ny_hi,     ny_lo)
-f_true_day_open()
+for [_, value] in key_zones
+    f_manage_kz(value)
+
+// True Day Open — runs inline (globals cannot be modified inside functions)
+if use_true_open and timeframe.in_seconds() < timeframe.in_seconds(sess_tf_limit)
+    bool is_midnight  = not na(time("", "0000-0001", SESS_TZ))
+    bool was_midnight = not na(time("", "0000-0001", SESS_TZ)[1])
+    if is_midnight and not was_midnight
+        if not na(tdo_line)
+            line.delete(tdo_line)
+        tdo_line := line.new(time, open, time, open, xloc=xloc.bar_time, color=tdo_color, style=f_style(tdo_style), width=tdo_width)
+        if not na(tdo_label)
+            label.delete(tdo_label)
+        tdo_label := label.new(time, open, "TDO", xloc=xloc.bar_time, color=SESS_TRANSPARENT, textcolor=tdo_color, style=label.style_label_down, size=size.small, text_font_family=font.family_monospace)
+    if not na(tdo_line)
+        tdo_line.set_x2(time)
+    if not na(tdo_label)
+        tdo_label.set_x(time)
+        tdo_label.set_textcolor(tdo_show_label ? tdo_color : SESS_TRANSPARENT)
+else if not na(tdo_line)
+    line.delete(tdo_line)
+    tdo_line := na
+    if not na(tdo_label)
+        label.delete(tdo_label)
+        tdo_label := na
 
 
 
 // ============================================================
-// BSL/SSL EXECUTION — runs every bar, single timeframe only,
-// matching cd_indiCATor_Cx's f_bsl_ssl(htf_bssl) call exactly.
+// BSL/SSL EXECUTION — runs every bar, independent of HTF Suite model
+// Two levels only: HTF1 (primary/mid color) and HTF2 (higher/hi color),
+// matching the HTF overlay candle pair exactly.
 // ============================================================
 if show_bsl_ssl_sec
-    f_bsl_ssl(bsl_tf, bsl_clr_up, bsl_clr_dn)
+    f_bsl_ssl(bsl_tf_primary, bsl_clr_mid, 1)        // HTF1  (num=1)
+    if bsl_tf_primary != bsl_tf_hi
+        f_bsl_ssl(bsl_tf_hi, bsl_clr_hi, 2)          // HTF2  (num=2)
 
 
 alertcondition(alerts_on, "HTF rebuild", "HTF suite running")
