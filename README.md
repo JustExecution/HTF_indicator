@@ -1,11 +1,13 @@
 # HTF SUITE
-
+[![X](https://img.shields.io/badge/X-JustExecution-000000?style=for-the-badge&logo=x)](https://x.com/JustExecution)
 A professional **TradingView Pine Script v6** indicator that combines Higher Timeframe (HTF) market structure, fractal models, CISD, SMT Divergence, session analysis, and projection tools into one unified trading framework.
 
 Designed for traders who rely on **multi-timeframe analysis** and ICT/Smart Money concepts, HTF SUITE provides institutional market context without requiring multiple indicators.
 
 ---
 <img width="1815" height="866" alt="image" src="https://github.com/user-attachments/assets/000b4ef8-27e9-4091-9db9-9d4ca275e23e" />
+<img width="1815" height="866" alt="image" src="https://github.com/user-attachments/assets/56270cc7-f4b9-4c31-ac37-b6f902a23d8c" />
+
 
 
 ## Features
@@ -230,5 +232,10 @@ If you use or modify this project, attribution is appreciated.
 ---
 
 ## Author
+## 🌐 Connect with me
 
-Developed by **MessedupTrader**
+<a href="https://x.com/JustExecution" target="_blank">
+  <img src="https://cdn.simpleicons.org/x" alt="X" width="32" height="32">
+</a>
+
+Developed by **@JustExecution**
