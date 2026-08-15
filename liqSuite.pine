@@ -1,0 +1,1040 @@
+//@version=6
+indicator("Liquidity Suite - Sessions + BSL/SSL", shorttitle="LiqSuite", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=500, max_bars_back=500)
+
+// ================================================================================================
+// LIQUIDITY SUITE
+// Sessions (Asia/London/NY) + True Day Open + PDH/PDL/PWH/PWL/PMH/PML + 3-tier HTF BSL/SSL
+// + Relevant Swings (fractal range map), all reconciled through one declutter engine.
+//
+// PRIORITY (1 = highest; used only as a tie-break and the HTF-vs-LTF gate):
+//   1 PDH/PDL/PWH/PWL/PMH/PML   2 Sessions H/L            3 HTF3 BSL/SSL
+//   4 HTF2 BSL/SSL              5 HTF1 BSL/SSL            6 Relevant Swings (current TF)
+//
+// When "Show Only Relevant Levels" is ON, any level whose price sits within
+// (ATR x Proximity Mult) of another level is hidden (fully transparent, object kept
+// alive so its own touch/purge logic keeps working) - not merged, not deleted, just
+// hidden. Clash rules, in order:
+//   1. A purged (already-touched, ✕) level always loses to a fresh active level.
+//   2. An HTF level (prio 1-5) always beats a current-TF swing (prio 6).
+//   3. Otherwise the OLDEST level (earliest formation bar) wins the cluster.
+//   4. Equal age -> higher priority, then registration order.
+//
+// The currently-forming session is NOT reconciled (it is unconfirmed): it can
+// neither hide nor be hidden, and joins the filter once it closes.
+//
+// RELEVANT SWINGS use a fractal window (default 3 candles of the next higher
+// timeframe, auto-mapped: 5m->1H, 15m->4H, 1H->D, D->M); pivots inside the window
+// are separated by the swings' own ATR (default 10, independent of the filter ATR)
+// so only major levels remain - a range map of the current TF for liq-sweep /
+// consolidation detection. At most the configured max levels per side are shown
+// (default 5).
+//
+// PURGED LEVELS (universal): every level type (PD/PW/PM, sessions H/L, HTF BSL/SSL,
+// swings) gets a ✕ cross at the touch point. BSL/SSL-type levels (PD/PW/PM + HTF)
+// are deleted ("Delete Purged Levels") or kept as gray/dotted; sessions H/L are never
+// deleted. Purged lines stay inside the declutter engine, so the ATR relevance filter
+// hides them too.
+// ================================================================================================
+
+// ============================================================
+// GROUPS
+// ============================================================
+var string GRP_GEN   = "General"
+var string GRP_REL   = "Relevance Filter"
+var string GRP_SESS  = "Sessions"
+var string GRP_TDO   = "True Day Open"
+var string GRP_PDW   = "PDH/PDL - PWH/PWL - PMH/PML"
+var string GRP_H1    = "HTF1 BSL/SSL"
+var string GRP_H2    = "HTF2 BSL/SSL"
+var string GRP_H3    = "HTF3 BSL/SSL"
+var string GRP_PRG   = "Purged Levels"
+var string GRP_SW    = "Relevant Swings"
+
+// ============================================================
+// GENERAL
+// ============================================================
+session_tz = input.string("America/New_York", "Timezone", group=GRP_GEN)
+
+// ============================================================
+// RELEVANCE FILTER
+// ============================================================
+mark_relevant_only = input.bool(false, "Show Only Relevant Levels", group=GRP_REL,
+     tooltip="When on, levels that sit within (ATR x Mult) of another level are decluttered: a purged (already-touched) level always loses to a fresh one, an HTF level always beats a current-TF swing, and otherwise the OLDEST level in the cluster is kept. The currently-forming session is exempt.")
+atr_len   = input.int(25, "ATR Length", minval=1, group=GRP_REL,
+     tooltip="ATR is computed on the current chart timeframe (auto).")
+atr_mult  = input.float(0.5, "Proximity Threshold (x ATR)", minval=0.05, step=0.05, group=GRP_REL,
+     tooltip="Two levels closer together than this many ATRs are treated as 'the same level'.")
+
+// ============================================================
+// SESSION SETTINGS
+// ============================================================
+show_sessions = input.bool(true, "Show Sessions", group=GRP_SESS)
+hide_above_tf = input.timeframe("30", "Hide Sessions Above TF", group=GRP_SESS)
+alert_sessions = input.bool(true, "Alert on Session High/Low Break", group=GRP_SESS)
+
+draw_style   = input.string("Both", "Style", group=GRP_SESS, options=["Box", "Lines", "Both"])
+box_transp   = input.int(92, "Box Transparency", group=GRP_SESS, minval=0, maxval=100)
+session_lbl  = input.string("Small", "Label Size", options=["Hide", "Tiny", "Small", "Normal", "Large", "Huge", "Auto"], group=GRP_SESS)
+max_sessions = input.int(3, "Max Past Sessions to Show", group=GRP_SESS, minval=1, maxval=20)
+session_style = input.string('⎯⎯⎯', 'Line Style', inline='ses_st', group=GRP_SESS, options=['⎯⎯⎯', '----', '····'])
+session_width = input.int(1, 'Line Width', inline='ses_st', group=GRP_SESS, minval=1, maxval=5)
+
+use_asia     = input.bool(true, "Asia", inline="s_as", group=GRP_SESS)
+asia_session = input.session("2000-0000", "", inline="s_as", group=GRP_SESS)
+asia_color   = input.color(color.rgb(238, 181, 107), "", inline="s_as", group=GRP_SESS)
+asia_hi_txt  = input.string("A.H", "High Label", group=GRP_SESS, inline="s_as_t")
+asia_lo_txt  = input.string("A.L", "Low Label", group=GRP_SESS, inline="s_as_t")
+
+use_london     = input.bool(true, "London", inline="s_lo", group=GRP_SESS)
+london_session = input.session("0200-0500", "", inline="s_lo", group=GRP_SESS)
+london_color   = input.color(color.rgb(82, 64, 120), "", inline="s_lo", group=GRP_SESS)
+london_hi_txt  = input.string("L.H", "High Label", group=GRP_SESS, inline="s_lo_t")
+london_lo_txt  = input.string("L.L", "Low Label", group=GRP_SESS, inline="s_lo_t")
+
+use_ny     = input.bool(true, "New York", inline="s_ny", group=GRP_SESS)
+ny_session = input.session("0930-1100", "", inline="s_ny", group=GRP_SESS)
+ny_color   = input.color(color.new(#0b7866, 0), "", inline="s_ny", group=GRP_SESS)
+ny_hi_txt  = input.string("NY.H", "High Label", group=GRP_SESS, inline="s_ny_t")
+ny_lo_txt  = input.string("NY.L", "Low Label", group=GRP_SESS, inline="s_ny_t")
+
+// ---- True Day Open ----
+use_true_open  = input.bool(true, "True Day Open", group=GRP_TDO)
+tdo_color      = input.color(color.new(#4c9f51, 0), "", group=GRP_TDO, inline="s_tdo")
+tdo_style      = input.string("Solid", "", group=GRP_TDO, inline="s_tdo", options=["Solid", "Dashed", "Dotted"])
+tdo_width      = input.int(1, "", group=GRP_TDO, inline="s_tdo", minval=1, maxval=5)
+tdo_show_label = input.bool(true, "Show Label", group=GRP_TDO)
+
+// ============================================================
+// PDH/PDL - PWH/PWL - PMH/PML
+// ============================================================
+show_pd = input.bool(true, "Show PDH/PDL", inline="pd", group=GRP_PDW)
+pd_color = input.color(color.new(color.blue, 0), "Color", inline="pdc", group=GRP_PDW)
+pd_style = input.string("Solid", "Style", inline="pdc", group=GRP_PDW, options=["Solid", "Dashed", "Dotted"])
+pd_width = input.int(1, "Width", inline="pdc", group=GRP_PDW, minval=1, maxval=5)
+
+show_pw = input.bool(true, "Show PWH/PWL", inline="pw", group=GRP_PDW)
+pw_color = input.color(color.new(color.purple, 0), "Color", inline="pwc", group=GRP_PDW)
+pw_style = input.string("Solid", "Style", inline="pwc", group=GRP_PDW, options=["Solid", "Dashed", "Dotted"])
+pw_width = input.int(1, "Width", inline="pwc", group=GRP_PDW, minval=1, maxval=5)
+
+show_pm = input.bool(false, "Show PMH/PML", inline="pm", group=GRP_PDW)
+pm_color = input.color(color.new(color.maroon, 0), "Color", inline="pmc", group=GRP_PDW)
+pm_style = input.string("Solid", "Style", inline="pmc", group=GRP_PDW, options=["Solid", "Dashed", "Dotted"])
+pm_width = input.int(1, "Width", inline="pmc", group=GRP_PDW, minval=1, maxval=5)
+
+// ============================================================
+// HTF1 / HTF2 / HTF3 BSL/SSL
+// ============================================================
+show_htf1 = input.bool(true,  "Show", inline="h1a", group=GRP_H1)
+htf1_mode = input.string("Auto", "Mode", inline="h1a", group=GRP_H1, options=["Auto", "Manual"])
+htf1_manual = input.timeframe("60", "Manual TF", group=GRP_H1)
+htf1_color = input.color(color.blue, "Color", inline="h1c", group=GRP_H1)
+htf1_style = input.string("Solid", "Style", inline="h1c", group=GRP_H1, options=["Solid", "Dashed", "Dotted"])
+htf1_width = input.int(1, "Width", inline="h1c", group=GRP_H1, minval=1, maxval=5)
+
+show_htf2 = input.bool(false, "Show", inline="h2a", group=GRP_H2)
+htf2_manual = input.timeframe("240", "Manual TF", inline="h2a", group=GRP_H2)
+htf2_color = input.color(color.teal, "Color", inline="h2c", group=GRP_H2)
+htf2_style = input.string("Solid", "Style", inline="h2c", group=GRP_H2, options=["Solid", "Dashed", "Dotted"])
+htf2_width = input.int(1, "Width", inline="h2c", group=GRP_H2, minval=1, maxval=5)
+
+show_htf3 = input.bool(false, "Show", inline="h3a", group=GRP_H3)
+htf3_manual = input.timeframe("D", "Manual TF", inline="h3a", group=GRP_H3)
+htf3_color = input.color(color.new(#1a237e, 0), "Color", inline="h3c", group=GRP_H3)
+htf3_style = input.string("Solid", "Style", inline="h3c", group=GRP_H3, options=["Solid", "Dashed", "Dotted"])
+htf3_width = input.int(1, "Width", inline="h3c", group=GRP_H3, minval=1, maxval=5)
+
+max_bsl_lines = input.int(5, "Max Lines Per Level", group=GRP_H1, minval=1, maxval=20,
+     tooltip="Applies to all three HTF BSL/SSL levels.")
+
+// ---- Universal Purged-Level Handling (BSL/SSL + PD/PW/PM - sessions H/L are never purged/deleted) ----
+del_purged   = input.bool(false, "Delete Purged Levels", group=GRP_PRG,
+     tooltip="Universal: applies to BSL/SSL and PD/PW/PM levels. Sessions H/L are never deleted. When off, purged levels stay on chart (gray dotted) with an ✕ cross at the touch point.")
+purged_color = input.color(color.gray, "Purged Color", inline="prg", group=GRP_PRG)
+purged_style = input.string("Dotted", "Purged Style", inline="prg", group=GRP_PRG, options=["Solid", "Dashed", "Dotted"])
+purge_cross  = input.bool(true, "Show ✕ Cross on Purge", inline="prgx", group=GRP_PRG)
+max_purged   = input.int(20, "Max Purged Levels Kept", inline="prgx", group=GRP_PRG, minval=1, maxval=100)
+
+// ============================================================
+// RELEVANT SWINGS
+// ============================================================
+show_swings = input.bool(false, "Show Relevant Swings", group=GRP_SW,
+     tooltip="Fractal range map of the current timeframe: pivot highs/lows inside a window of N candles of the next higher timeframe (auto-mapped, e.g. 5m->1H, 15m->4H), separated by the swings' own ATR so only major levels remain. At most the configured max levels per side are shown. Marks a ✕ when price sweeps one.")
+swing_window = input.int(3, "Window (HTF candles)", group=GRP_SW, minval=1, maxval=10,
+     tooltip="How many candles of the next higher timeframe the fractal window spans. 3 = the current HTF candle plus the two before it.")
+swing_len    = input.int(5, "Pivot Length", minval=1, group=GRP_SW)
+swing_atr_len = input.int(10, "ATR Length", group=GRP_SW, minval=1,
+     tooltip="Independent ATR used to separate swing levels into clusters (the Relevance Filter uses its own ATR Length).")
+swing_max_levels = input.int(5, "Max Levels (per side)", group=GRP_SW, minval=1, maxval=50,
+     tooltip="Maximum number of relevant swing levels drawn per side (highs and lows separately). When more clusters survive, the most extreme ones are kept.")
+swing_color  = input.color(color.gray, "Color", inline="swc", group=GRP_SW)
+swing_style  = input.string("Dotted", "Style", inline="swc", group=GRP_SW, options=["Solid", "Dashed", "Dotted"])
+swing_width  = input.int(1, "Width", inline="swc", group=GRP_SW, minval=1, maxval=5)
+swing_label_txt = input.string("r", "Label", group=GRP_SW, options=["Hide", "r", "Rel. High", "Rel. Low"],
+     tooltip="Text of the label at each relevant swing level. 'Hide' turns labels off.")
+
+// ============================================================
+// HELPERS
+// ============================================================
+f_style(string s) =>
+    s == "Dashed" ? line.style_dashed : s == "Dotted" ? line.style_dotted : line.style_solid
+
+f_sess_text_size(string sz) =>
+    switch sz
+        "Tiny"   => size.tiny
+        "Small"  => size.small
+        "Normal" => size.normal
+        "Large"  => size.large
+        "Huge"   => size.huge
+        "Auto"   => size.auto
+        => size.small
+
+f_sess_line_style_mapped(string s) =>
+    switch s
+        '⎯⎯⎯' => line.style_solid
+        '----' => line.style_dashed
+        '····' => line.style_dotted
+        => line.style_solid
+
+var color colors_transparent = color.new(color.white, 100)
+bool box_visible  = draw_style == "Box"  or draw_style == "Both"
+bool line_visible = draw_style == "Lines" or draw_style == "Both"
+
+// ============================================================
+// RECONCILIATION ENGINE (age-based declutter)
+// Rebuilt fresh every bar. Every category registers its currently
+// active line/label pair with a price, a priority (1=highest), its
+// formation time (crtime), a purged flag and its true (canonical)
+// color. At the end of the bar we compare all pairs; if two are
+// within ATR*mult of each other the loser gets its color set fully
+// transparent (hidden, not deleted, not merged). Clash rules:
+//   1. purged vs fresh active     -> fresh active wins
+//   2. HTF (prio 1-5) vs swing 6  -> HTF wins
+//   3. both active, same tier     -> OLDEST formation time wins
+//   4. equal age                  -> higher priority, then order
+// If the filter is off, everything just shows its true color.
+// ============================================================
+var line[]   rc_line   = array.new_line()
+var label[]  rc_label  = array.new_label()
+var float[]  rc_price  = array.new_float()
+var int[]    rc_prio   = array.new_int()
+var color[]  rc_color  = array.new_color()
+var int[]    rc_time   = array.new_int()
+var bool[]   rc_purged = array.new_bool()
+
+array.clear(rc_line)
+array.clear(rc_label)
+array.clear(rc_price)
+array.clear(rc_prio)
+array.clear(rc_color)
+array.clear(rc_time)
+array.clear(rc_purged)
+
+f_rc_register(line ln, label lb, float price, int prio, color clr, int crtime, bool is_purged) =>
+    if not na(ln) and not na(price)
+        int ct = na(crtime) ? time : crtime
+        array.push(rc_line, ln)
+        array.push(rc_label, lb)
+        array.push(rc_price, price)
+        array.push(rc_prio, prio)
+        array.push(rc_color, clr)
+        array.push(rc_time, ct)
+        array.push(rc_purged, is_purged)
+
+f_rc_reconcile(bool relevantOnly, float atrVal, float mult) =>
+    int n = array.size(rc_price)
+    if n > 0
+        bool[] hidden = array.new_bool(n, false)
+        if relevantOnly and n > 1 and not na(atrVal)
+            float thresh = atrVal * mult
+            for i = 0 to n - 2
+                if not array.get(hidden, i)
+                    float pi = array.get(rc_price, i)
+                    int   pri_i = array.get(rc_prio, i)
+                    int   tim_i = array.get(rc_time, i)
+                    bool  pgr_i = array.get(rc_purged, i)
+                    for j = i + 1 to n - 1
+                        if not array.get(hidden, j)
+                            float pj = array.get(rc_price, j)
+                            if math.abs(pi - pj) <= thresh
+                                int   pri_j = array.get(rc_prio, j)
+                                int   tim_j = array.get(rc_time, j)
+                                bool  pgr_j = array.get(rc_purged, j)
+                                bool  hide_i = false
+                                bool  hide_j = false
+                                if pgr_i and not pgr_j
+                                    hide_i := true
+                                else if pgr_j and not pgr_i
+                                    hide_j := true
+                                else if pgr_i and pgr_j
+                                    if tim_i < tim_j
+                                        hide_j := true
+                                    else if tim_j < tim_i
+                                        hide_i := true
+                                    else if pri_i <= pri_j
+                                        hide_j := true
+                                    else
+                                        hide_i := true
+                                else
+                                    bool i_swing = pri_i == 6
+                                    bool j_swing = pri_j == 6
+                                    if i_swing and not j_swing
+                                        hide_i := true
+                                    else if j_swing and not i_swing
+                                        hide_j := true
+                                    else if tim_i < tim_j
+                                        hide_j := true
+                                    else if tim_j < tim_i
+                                        hide_i := true
+                                    else if pri_i <= pri_j
+                                        hide_j := true
+                                    else
+                                        hide_i := true
+                                if hide_i
+                                    array.set(hidden, i, true)
+                                    break
+                                if hide_j
+                                    array.set(hidden, j, true)
+        for i = 0 to n - 1
+            line  ln  = array.get(rc_line, i)
+            label lb  = array.get(rc_label, i)
+            color base = array.get(rc_color, i)
+            bool  hide = relevantOnly and array.get(hidden, i)
+            color fin  = hide ? color.new(base, 100) : base
+            if not na(ln)
+                line.set_color(ln, fin)
+            if not na(lb)
+                label.set_textcolor(lb, fin)
+
+// ============================================================
+// PURGED LEVEL REGISTRY (universal keep-with-✕ handling)
+// Purged (touched) lines stay alive, turn gray/dotted and get an
+// ✕ cross at the touch point. They keep being reconciled so the
+// ATR relevance filter hides them too when they sit inside a
+// fresh (kept) level.
+// ============================================================
+var line[]   prg_ln    = array.new_line()
+var label[]  prg_lb    = array.new_label()
+var float[]  prg_price = array.new_float()
+var int[]    prg_prio  = array.new_int()
+var color[]  prg_color = array.new_color()
+var int[]    prg_time  = array.new_int()
+
+f_prg_trim() =>
+    while array.size(prg_ln) > max_purged
+        line del_ln = array.shift(prg_ln)
+        label del_lb = array.shift(prg_lb)
+        array.shift(prg_price)
+        array.shift(prg_prio)
+        array.shift(prg_color)
+        array.shift(prg_time)
+        if not na(del_ln)
+            line.delete(del_ln)
+        if not na(del_lb)
+            label.delete(del_lb)
+
+f_touch_mark(float price, int prio, int crtime) =>
+    // Standalone ✕ at the touch point - used by sessions H/L and relevant swings,
+    // whose lines are never deleted, only marked.
+    label xl = na
+    if purge_cross
+        xl := label.new(time, price, "✕", xloc=xloc.bar_time, color=color.new(color.black, 100), textcolor=purged_color, style=label.style_label_left, size=size.tiny)
+    array.push(prg_ln, na)
+    array.push(prg_lb, xl)
+    array.push(prg_price, price)
+    array.push(prg_prio, prio)
+    array.push(prg_color, purged_color)
+    array.push(prg_time, crtime)
+    f_prg_trim()
+
+f_purge_level(line ln, label lb, float lvl, color clr, int prio, int crtime) =>
+    // BSL/SSL-type levels (PD/PW/PM + HTF BSL/SSL): delete or keep gray/dotted + ✕
+    if not na(ln)
+        if del_purged
+            line.delete(ln)
+            if not na(lb)
+                label.delete(lb)
+        else
+            line.set_color(ln, purged_color)
+            line.set_style(ln, f_style(purged_style))
+            line.set_x2(ln, time)
+            if not na(lb)
+                label.delete(lb)
+            label xl = na
+            if purge_cross
+                xl := label.new(time, lvl, "✕", xloc=xloc.bar_time, color=color.new(color.black, 100), textcolor=purged_color, style=label.style_label_left, size=size.tiny)
+            array.push(prg_ln, ln)
+            array.push(prg_lb, xl)
+            array.push(prg_price, lvl)
+            array.push(prg_prio, prio)
+            array.push(prg_color, purged_color)
+            array.push(prg_time, crtime)
+            f_prg_trim()
+
+// ============================================================
+// ATR (fixed timeframe, for the proximity filter)
+// ============================================================
+atr_val = ta.atr(atr_len)
+
+// ============================================================
+// SESSIONS ENGINE (kz)
+//Insipired from old script  https://in.tradingview.com/script/nW5oGfdO-ICT-Killzones-Pivots-TFO/
+// ============================================================
+type kz
+    string _title
+    array<box> _box
+    array<line> _hi_line
+    array<line> _lo_line
+    array<label> _hi_label
+    array<label> _lo_label
+    array<bool> _hi_valid
+    array<bool> _lo_valid
+    bool _created = false
+    int _created_day = na
+
+type kz_helper
+    kz _kz
+    string session
+    string tz
+    color c
+    string hi_txt
+    string lo_txt
+
+f_new_kz_state(string title) =>
+    kz.new(_title=title, _box=array.new_box(), _hi_line=array.new_line(), _lo_line=array.new_line(),
+         _hi_label=array.new_label(), _lo_label=array.new_label(), _hi_valid=array.new_bool(), _lo_valid=array.new_bool())
+
+f_init_kz() =>
+    res = array.new<kz_helper>()
+    if use_asia
+        res.push(kz_helper.new(_kz=f_new_kz_state('Asia'), session=asia_session, tz=session_tz, c=asia_color, hi_txt=asia_hi_txt, lo_txt=asia_lo_txt))
+    if use_london
+        res.push(kz_helper.new(_kz=f_new_kz_state('London'), session=london_session, tz=session_tz, c=london_color, hi_txt=london_hi_txt, lo_txt=london_lo_txt))
+    if use_ny
+        res.push(kz_helper.new(_kz=f_new_kz_state('New York'), session=ny_session, tz=session_tz, c=ny_color, hi_txt=ny_hi_txt, lo_txt=ny_lo_txt))
+    res
+
+var array<kz_helper> key_zones = f_init_kz()
+
+f_del_kz(kz k) =>
+    // Pop every parallel array in LOCKSTEP until ALL are within max_sessions.
+    // One loop keyed on all counts removes exactly one element from each array
+    // per iteration, so k._box / k._hi_line / k._lo_line / labels / validity
+    // can never diverge (the old per-array if-blocks could, silently, when any
+    // array was one element ahead - which then crashed any index > box count).
+    while k._box.size() > max_sessions or k._hi_line.size() > max_sessions or k._hi_label.size() > max_sessions
+        if k._box.size() > 0
+            box del_b = k._box.pop()
+            if not na(del_b)
+                box.delete(del_b)
+        if k._hi_line.size() > 0
+            line del_h = k._hi_line.pop()
+            line del_l = k._lo_line.pop()
+            array.pop(k._hi_valid)
+            array.pop(k._lo_valid)
+            if not na(del_h)
+                line.delete(del_h)
+            if not na(del_l)
+                line.delete(del_l)
+        if k._hi_label.size() > 0
+            label del_hl = k._hi_label.pop()
+            label del_ll = k._lo_label.pop()
+            if not na(del_hl)
+                label.delete(del_hl)
+            if not na(del_ll)
+                label.delete(del_ll)
+
+method f_adjust_in_kz(kz kz, color c, bool t) =>
+    if t and kz._box.size() > 0
+        b0 = kz._box.get(0)
+        b0.set_right(time)
+        b0.set_top(math.max(b0.get_top(), high))
+        b0.set_bottom(math.min(b0.get_bottom(), low))
+        color box_fill = box_visible ? color.new(c, box_transp) : color.new(c, 100)
+        b0.set_bgcolor(box_fill)
+        b0.set_border_color(box_fill)
+        if kz._hi_line.size() > 0
+            color ln_color = line_visible ? c : color.new(c, 100)
+            hl0 = kz._hi_line.get(0)
+            hl0.set_color(ln_color)
+            hl0.set_x2(bar_index)
+            if high > hl0.get_y1()
+                hl0.set_xy1(bar_index, high)
+                hl0.set_xy2(bar_index, high)
+            ll0 = kz._lo_line.get(0)
+            ll0.set_color(ln_color)
+            ll0.set_x2(bar_index)
+            if low < ll0.get_y1()
+                ll0.set_xy1(bar_index, low)
+                ll0.set_xy2(bar_index, low)
+        if kz._hi_label.size() > 0
+            color lbl_color = session_lbl != "Hide" ? c : colors_transparent
+            kz._hi_label.get(0).set_textcolor(lbl_color)
+            kz._lo_label.get(0).set_textcolor(lbl_color)
+            if high > kz._hi_label.get(0).get_y()
+                kz._hi_label.get(0).set_xy(time, high)
+            if low < kz._lo_label.get(0).get_y()
+                kz._lo_label.get(0).set_xy(time, low)
+
+method f_adjust_out_kz(kz kz, bool t) =>
+    boxCount = kz._box.size()
+    if not t and boxCount > 0
+        if kz._hi_valid.get(0)
+            kz._hi_line.get(0).set_x2(bar_index)
+            kz._hi_label.get(0).set_x(time)
+            if high >= kz._hi_line.get(0).get_y1()
+                kz._hi_valid.set(0, false)
+                f_touch_mark(kz._hi_line.get(0).get_y1(), 2, int(kz._box.get(0).get_left()))
+                kz._hi_label.get(0).set_x(time[3])
+                if alert_sessions
+                    alert(kz._title + ' High Touched', alert.freq_once_per_bar)
+        if kz._lo_valid.get(0)
+            kz._lo_line.get(0).set_x2(bar_index)
+            kz._lo_label.get(0).set_x(time)
+            if low <= kz._lo_line.get(0).get_y1()
+                kz._lo_valid.set(0, false)
+                f_touch_mark(kz._lo_line.get(0).get_y1(), 2, int(kz._box.get(0).get_left()))
+                kz._lo_label.get(0).set_x(time[3])
+                if alert_sessions
+                    alert(kz._title + " Low Touched", alert.freq_once_per_bar)
+
+method f_manage_kz(kz_helper this) =>
+    kz k = this._kz
+    color c = this.c
+    string hi_t = this.hi_txt
+    string lo_t = this.lo_txt
+
+    if timeframe.in_seconds() < timeframe.in_seconds(hide_above_tf)
+        bool t = not na(time("", this.session, this.tz))
+        int sess_day = dayofmonth(time, this.tz)
+
+        if k._created and sess_day != k._created_day
+            k._created := false
+
+        if t and (not k._created or k._box.size() == 0)
+            color box_fill = box_visible ? color.new(c, box_transp) : color.new(c, 100)
+            k._box.unshift(box.new(time, high, time, low, xloc=xloc.bar_time, border_color=box_fill, bgcolor=box_fill, text_color=na))
+            color ln_color = line_visible ? c : color.new(c, 100)
+            k._hi_line.unshift(line.new(bar_index, high, bar_index, high, xloc=xloc.bar_index, style=f_sess_line_style_mapped(session_style), color=ln_color, width=session_width))
+            k._lo_line.unshift(line.new(bar_index, low, bar_index, low, xloc=xloc.bar_index, style=f_sess_line_style_mapped(session_style), color=ln_color, width=session_width))
+            array.unshift(k._hi_valid, true)
+            array.unshift(k._lo_valid, true)
+            color lbl_color = session_lbl != "Hide" ? c : colors_transparent
+            k._hi_label.unshift(label.new(time, high, hi_t, xloc=xloc.bar_time, color=colors_transparent, textcolor=lbl_color, style=label.style_label_down, size=f_sess_text_size(session_lbl), text_font_family=font.family_monospace))
+            k._lo_label.unshift(label.new(time, low, lo_t, xloc=xloc.bar_time, color=colors_transparent, textcolor=lbl_color, style=label.style_label_up, size=f_sess_text_size(session_lbl), text_font_family=font.family_monospace))
+            f_del_kz(k)
+            k._created := true
+            k._created_day := sess_day
+
+        f_adjust_in_kz(k, c, t)
+        f_adjust_out_kz(k, t)
+
+        // Register confirmed sessions only - the currently forming one (index 0 while
+        // t is true) is unconfirmed and must not take part in the ATR relevance filter.
+        // Age of a session level = its start time (box left edge).
+        // Touched (invalid, ✕) session levels leave the filter: a used level must
+        // never hide a fresh active level.
+        if k._hi_line.size() > 0 and k._box.size() > 0
+            int reg_start = t ? 1 : 0
+            // Bound by the SMALLEST of the parallel arrays we index - belt and
+            // braces against any legacy size mismatch (see f_del_kz).
+            int reg_max = math.min(k._hi_line.size(), k._box.size())
+            // Explicit counter loop (NOT `for i = start to stop`): with a single
+            // forming session the range start=1 stop=0 is EMPTY, and a series-bounded
+            // FOR loop entered that empty range and ran once with i=1 -> array.get()
+            // index 1 on a size-1 array crashed bar 24. This WHILE form can never
+            // enter an empty range.
+            int reg_i = reg_start
+            while reg_i < reg_max
+                int sess_start = int(k._box.get(reg_i).get_left())
+                if k._hi_valid.get(reg_i)
+                    f_rc_register(k._hi_line.get(reg_i), k._hi_label.get(reg_i), k._hi_line.get(reg_i).get_y1(), 2, c, sess_start, false)
+                if k._lo_valid.get(reg_i)
+                    f_rc_register(k._lo_line.get(reg_i), k._lo_label.get(reg_i), k._lo_line.get(reg_i).get_y1(), 2, c, sess_start, false)
+                reg_i += 1
+
+if show_sessions
+    for [_, value] in key_zones
+        f_manage_kz(value)
+
+// ---- True Day Open ----
+var line tdo_line = na
+var label tdo_label = na
+if use_true_open and timeframe.in_seconds() < timeframe.in_seconds(hide_above_tf)
+    bool is_midnight  = not na(time("", "0000-0001", session_tz))
+    bool was_midnight = not na(time("", "0000-0001", session_tz)[1])
+    if is_midnight and not was_midnight
+        if not na(tdo_line)
+            line.delete(tdo_line)
+        tdo_line := line.new(time, open, time, open, xloc=xloc.bar_time, color=tdo_color, style=f_style(tdo_style), width=tdo_width)
+        if not na(tdo_label)
+            label.delete(tdo_label)
+        tdo_label := label.new(time, open, "TDO", xloc=xloc.bar_time, color=colors_transparent, textcolor=tdo_color, style=label.style_label_down, size=size.small, text_font_family=font.family_monospace)
+    if not na(tdo_line)
+        tdo_line.set_x2(time)
+    if not na(tdo_label)
+        tdo_label.set_x(time)
+        tdo_label.set_textcolor(tdo_show_label ? tdo_color : colors_transparent)
+else if not na(tdo_line)
+    line.delete(tdo_line)
+    tdo_line := na
+    if not na(tdo_label)
+        label.delete(tdo_label)
+        tdo_label := na
+
+
+// ============================================================
+// HTF AUTO-MAP for BSL/SSL levels (HTF1 only - HTF2/HTF3 are manual)
+// ============================================================
+f_bsl_auto_tf() =>
+    int s = timeframe.in_seconds()
+    s <= 60 ? "15" : s <= 180 ? "30" : s <= 300 ? "60" : s <= 900 ? "240" : s <= 1800 ? "240" : s <= 3600 ? "D" : s <= 14400 ? "W" : "M"
+
+string htf1_tf = htf1_mode == "Auto" ? f_bsl_auto_tf() : htf1_manual
+string htf2_tf = htf2_manual
+string htf3_tf = htf3_manual
+
+// ============================================================
+// BSL/SSL MINI HTF TRACKER (flash-free, per call-site state)
+//Inspired from https://in.tradingview.com/script/hh8jziU2-cd-bsl-ssl-Cx/
+//updated logics as per my need and tf alignment
+// ============================================================
+f_bsl_mini(string _htf) =>
+    var float _h0 = high
+    var float _l0 = low
+    var float _o0 = open
+    var int   _t0 = time
+    var float _h1 = high
+    var float _l1 = low
+    var float _o1 = open
+    var int   _t1 = time
+    var int   _h0bar = time
+    var int   _l0bar = time
+    var int   _h1bar = time
+    var int   _l1bar = time
+
+    if timeframe.change(_htf)
+        _t0 := time
+        _o0 := open
+        _h0 := high
+        _l0 := low
+    if high >= _h0
+        _h0 := high
+        _h0bar := time
+    if low <= _l0
+        _l0 := low
+        _l0bar := time
+    if timeframe.change(_htf)
+        _o1 := _o0[1]
+        _h1 := _h0[1]
+        _l1 := _l0[1]
+        _t1 := _t0[1]
+        _h1bar := _h0bar[1]
+        _l1bar := _l0bar[1]
+    [_h1, _l1, close[1], _o1, _t1, _h0, _l0, close, _o0, _t0, _h1bar, _l1bar, _h0bar, _l0bar]
+
+// ============================================================
+// PDH/PDL - PWH/PWL - PMH/PML (previous liquidity, one engine,
+// same flash-free source as BSL/SSL, so every line originates from
+// the exact bar where the high/low formed)
+// ============================================================
+f_prev_level(string per, bool isHigh, string lbltxt, color clr, string styleStr, int wid, int prio, bool enabled) =>
+    [h1, l1, c1, o1, t1, h0, l0, c0, o0, t0, h1bar, l1bar, h0bar, l0bar] = f_bsl_mini(per)
+    if enabled
+        var float lv = na
+        var int   lv_time = na
+        var line  ln = na
+        var label lb = na
+        var bool  touched = false
+        if not na(h1) and not na(l1)
+            float nv = isHigh ? h1 : l1
+            int   nb = isHigh ? h1bar : l1bar
+            if timeframe.change(per)
+                lv := nv
+                lv_time := nb
+                touched := false
+                if not na(ln)
+                    line.delete(ln)
+                if not na(lb)
+                    label.delete(lb)
+                ln := na
+                lb := na
+                if not na(lv)
+                    ln := line.new(nb, lv, time, lv, xloc=xloc.bar_time, color=clr, style=f_style(styleStr), width=wid)
+                    lb := label.new(time, lv, lbltxt, xloc=xloc.bar_time, style=label.style_label_left, color=color.new(color.black, 100), textcolor=clr, size=size.small)
+            else
+                if not na(ln)
+                    line.set_x2(ln, time)
+                    label.set_x(lb, time)
+                    if not touched
+                        bool hit = isHigh ? high >= lv : low <= lv
+                        if hit
+                            touched := true
+                            f_purge_level(ln, lb, lv, clr, prio, lv_time)
+                            ln := na
+                            lb := na
+        if not na(ln)
+            f_rc_register(ln, lb, lv, prio, clr, lv_time, false)
+
+f_prev_level("D", true,  "PDH", pd_color, pd_style, pd_width, 1, show_pd)
+f_prev_level("D", false, "PDL", pd_color, pd_style, pd_width, 1, show_pd)
+f_prev_level("W", true,  "PWH", pw_color, pw_style, pw_width, 1, show_pw)
+f_prev_level("W", false, "PWL", pw_color, pw_style, pw_width, 1, show_pw)
+f_prev_level("M", true,  "PMH", pm_color, pm_style, pm_width, 1, show_pm)
+f_prev_level("M", false, "PML", pm_color, pm_style, pm_width, 1, show_pm)
+
+// ============================================================
+// BSL/SSL ENGINE — one call-site per HTF level = independent persistent state
+// ============================================================
+f_bsl_ssl_v2(string _htf, color clr, string styleStr, int wid, int maxLines, int prio, bool enabled) =>
+    [h1, l1, c1, o1, t1, h0, l0, c0, o0, t0, h1bar, l1bar, h0bar, l0bar] = f_bsl_mini(_htf)
+    if enabled
+
+        var float h2 = high
+        var float l2 = low
+        var float h3 = high
+        var float l3 = low
+        var float h4 = high
+        var float l4 = low
+        var int h2bar = time
+        var int l2bar = time
+
+        var line[]  arr_bsl = array.new_line()
+        var line[]  arr_ssl = array.new_line()
+        var label[] arr_bslbl = array.new_label()
+        var label[] arr_sslbl = array.new_label()
+        var int[]   arr_bsl_trig = array.new_int()
+        var int[]   arr_ssl_trig = array.new_int()
+        var int[]   arr_bsl_time = array.new_int()
+        var int[]   arr_ssl_time = array.new_int()
+        var line bsl_temp = line.new(na, na, na, na, xloc=xloc.bar_time, color=color.new(color.black, 100))
+        var line ssl_temp = line.new(na, na, na, na, xloc=xloc.bar_time, color=color.new(color.black, 100))
+        var int sayh = 0
+        var int sayl = 0
+
+        int dt = timeframe.in_seconds(timeframe.period) * 1000
+
+        if timeframe.change(_htf)
+            h2 := h1[1]
+            l2 := l1[1]
+            h3 := h2[1]
+            l3 := l2[1]
+            h4 := h3[1]
+            l4 := l3[1]
+            h2bar := h1bar[1]
+            l2bar := l1bar[1]
+            sayh := 0
+            sayl := 0
+            line.delete(bsl_temp)
+            line.delete(ssl_temp)
+
+        if (h1 > h2 and h1 > h0) or (h1 == h2 and h1 > h0 and h2 > h3)
+            bsl_temp := line.new(h1bar, h1, time, h1, xloc=xloc.bar_time, color=color.new(clr, 60), style=line.style_dashed)
+            line.delete(bsl_temp[1])
+
+        if (l1 < l2 and l1 < l0) or (l1 == l2 and l1 < l0 and l2 < l3)
+            ssl_temp := line.new(l1bar, l1, time, l1, xloc=xloc.bar_time, color=color.new(clr, 60), style=line.style_dashed)
+            line.delete(ssl_temp[1])
+
+        if ((h2 > h3 and h2 > h1) or (h2 == h3 and h2 > h1 and h3 > h4)) and sayh == 0
+            line bsl_new = line.new(h2bar, h2, time + 4*dt, h2, xloc=xloc.bar_time, color=clr, style=f_style(styleStr), width=wid)
+            label bslbl_n = label.new(time + 4*dt, h2, "BSL", xloc=xloc.bar_time, color=color.new(color.white, 100), style=label.style_label_left, textcolor=clr, size=size.small)
+            array.unshift(arr_bsl, bsl_new)
+            array.unshift(arr_bslbl, bslbl_n)
+            array.unshift(arr_bsl_trig, 0)
+            array.unshift(arr_bsl_time, h2bar)
+            sayh := 1
+
+        if ((l2 < l3 and l2 < l1) or (l2 == l3 and l2 < l1 and l3 < l4)) and sayl == 0
+            line ssl_new = line.new(l2bar, l2, time + 4*dt, l2, xloc=xloc.bar_time, color=clr, style=f_style(styleStr), width=wid)
+            label sslbl_n = label.new(time + 4*dt, l2, "SSL", xloc=xloc.bar_time, color=color.new(color.white, 100), style=label.style_label_left, textcolor=clr, size=size.small)
+            array.unshift(arr_ssl, ssl_new)
+            array.unshift(arr_sslbl, sslbl_n)
+            array.unshift(arr_ssl_trig, 0)
+            array.unshift(arr_ssl_time, l2bar)
+            sayl := 1
+
+        if array.size(arr_bsl) > 0
+            for i = array.size(arr_bsl) - 1 to 0
+                line dln = array.get(arr_bsl, i)
+                int dtrig = array.get(arr_bsl_trig, i)
+                float top = line.get_y1(dln)
+                if high >= top and high[1] < top and dtrig == 0
+                    array.set(arr_bsl_trig, i, 1)
+                    alert("BSL purged (" + _htf + ")", alert.freq_once_per_bar)
+                    break
+
+        if array.size(arr_bsl) > 0
+            for i = array.size(arr_bsl) - 1 to 0
+                line dln = array.get(arr_bsl, i)
+                label dlbl = array.get(arr_bslbl, i)
+                float top = line.get_y1(dln)
+                if high < top
+                    line.set_x2(dln, time + 4*dt)
+                    label.set_x(dlbl, time + 4*dt)
+                if high >= top and high[1] < top
+                    f_purge_level(dln, dlbl, top, clr, prio, array.get(arr_bsl_time, i))
+                    array.remove(arr_bsl, i)
+                    array.remove(arr_bslbl, i)
+                    array.remove(arr_bsl_trig, i)
+                    array.remove(arr_bsl_time, i)
+
+        if array.size(arr_ssl) > 0
+            for i = array.size(arr_ssl) - 1 to 0
+                line dln = array.get(arr_ssl, i)
+                int dtrig = array.get(arr_ssl_trig, i)
+                float bot = line.get_y1(dln)
+                if low <= bot and low[1] > bot and dtrig == 0
+                    array.set(arr_ssl_trig, i, 1)
+                    alert("SSL purged (" + _htf + ")", alert.freq_once_per_bar)
+                    break
+
+        if array.size(arr_ssl) > 0
+            for i = array.size(arr_ssl) - 1 to 0
+                line dln = array.get(arr_ssl, i)
+                label dlbl = array.get(arr_sslbl, i)
+                float bot = line.get_y1(dln)
+                if low > bot
+                    line.set_x2(dln, time + 4*dt)
+                    label.set_x(dlbl, time + 4*dt)
+                if low <= bot and low[1] > bot
+                    f_purge_level(dln, dlbl, bot, clr, prio, array.get(arr_ssl_time, i))
+                    array.remove(arr_ssl, i)
+                    array.remove(arr_sslbl, i)
+                    array.remove(arr_ssl_trig, i)
+                    array.remove(arr_ssl_time, i)
+
+        if array.size(arr_bsl) > maxLines
+            for i = array.size(arr_bsl) - 1 to maxLines
+                line.delete(array.get(arr_bsl, i))
+                label.delete(array.get(arr_bslbl, i))
+                array.remove(arr_bsl, i)
+                array.remove(arr_bslbl, i)
+                array.remove(arr_bsl_trig, i)
+                array.remove(arr_bsl_time, i)
+        if array.size(arr_ssl) > maxLines
+            for i = array.size(arr_ssl) - 1 to maxLines
+                line.delete(array.get(arr_ssl, i))
+                label.delete(array.get(arr_sslbl, i))
+                array.remove(arr_ssl, i)
+                array.remove(arr_sslbl, i)
+                array.remove(arr_ssl_trig, i)
+                array.remove(arr_ssl_time, i)
+
+        if array.size(arr_bsl) > 0
+            for i = 0 to array.size(arr_bsl) - 1
+                line dln = array.get(arr_bsl, i)
+                label dlbl = array.get(arr_bslbl, i)
+                f_rc_register(dln, dlbl, line.get_y1(dln), prio, clr, array.get(arr_bsl_time, i), false)
+        if array.size(arr_ssl) > 0
+            for i = 0 to array.size(arr_ssl) - 1
+                line dln = array.get(arr_ssl, i)
+                label dlbl = array.get(arr_sslbl, i)
+                f_rc_register(dln, dlbl, line.get_y1(dln), prio, clr, array.get(arr_ssl_time, i), false)
+
+f_bsl_ssl_v2(htf1_tf, htf1_color, htf1_style, htf1_width, max_bsl_lines, 5, show_htf1)
+f_bsl_ssl_v2(htf2_tf, htf2_color, htf2_style, htf2_width, max_bsl_lines, 4, show_htf2)
+f_bsl_ssl_v2(htf3_tf, htf3_color, htf3_style, htf3_width, max_bsl_lines, 3, show_htf3)
+
+// ============================================================
+// RELEVANT SWINGS — fractal range map of the current timeframe
+// Window = 3 candles of the next higher timeframe (auto-mapped
+// via f_bsl_auto_tf: 5m->1H, 15m->4H, 1H->D, D->M). Pivots inside
+// the window are ATR-separated so only major levels remain - the
+// range high/low of the current TF for liq-sweep/consolidation
+// detection. Levels are drawn at prio 6, so any HTF BSL/SSL
+// (prio 1-5) automatically wins an overlap in f_rc_reconcile.
+// ============================================================
+if show_swings
+    string swing_htf = f_bsl_auto_tf()
+    int win_start = ta.valuewhen(timeframe.change(swing_htf), bar_index, swing_window - 1)
+
+    var float[] sw_hi   = array.new_float()
+    var int[]   sw_hi_b = array.new_int()
+    var int[]   sw_hi_t = array.new_int()
+    var line[]  sw_hi_ln = array.new_line()
+    var label[] sw_hi_lb = array.new_label()
+    var float[] sw_lo   = array.new_float()
+    var int[]   sw_lo_b = array.new_int()
+    var int[]   sw_lo_t = array.new_int()
+    var line[]  sw_lo_ln = array.new_line()
+    var label[] sw_lo_lb = array.new_label()
+
+    float ph = ta.pivothigh(high, swing_len, swing_len)
+    float pl = ta.pivotlow(low, swing_len, swing_len)
+    int pivot_bar = bar_index - swing_len
+    int pivot_time = time[swing_len]
+
+    // A pivot forms exactly once (swing_len bars after its extreme bar): create its
+    // line/label right here and keep the SAME objects for its whole life in the window
+    // (extended every bar). Re-creating objects every bar would exhaust
+    // max_lines_count / max_labels_count within a few hundred bars.
+    if not na(ph)
+        array.push(sw_hi, ph)
+        array.push(sw_hi_b, pivot_bar)
+        array.push(sw_hi_t, pivot_time)
+        array.push(sw_hi_ln, line.new(pivot_bar, ph, bar_index, ph, xloc=xloc.bar_index, color=swing_color, style=f_style(swing_style), width=swing_width))
+        array.push(sw_hi_lb, swing_label_txt != "Hide" ? label.new(bar_index, ph, swing_label_txt, xloc=xloc.bar_index, style=label.style_label_left, color=color.new(color.black,100), textcolor=swing_color, size=size.tiny) : na)
+    if not na(pl)
+        array.push(sw_lo, pl)
+        array.push(sw_lo_b, pivot_bar)
+        array.push(sw_lo_t, pivot_time)
+        array.push(sw_lo_ln, line.new(pivot_bar, pl, bar_index, pl, xloc=xloc.bar_index, color=swing_color, style=f_style(swing_style), width=swing_width))
+        array.push(sw_lo_lb, swing_label_txt != "Hide" ? label.new(bar_index, pl, swing_label_txt, xloc=xloc.bar_index, style=label.style_label_left, color=color.new(color.black,100), textcolor=swing_color, size=size.tiny) : na)
+
+    // Drop pivots outside the fractal window (oldest first; arrays are
+    // chronological because pivots only arrive as the current bar grows).
+    // Leaving pivots have their line/label objects deleted.
+    if array.size(sw_hi) > 0
+        for i = array.size(sw_hi) - 1 to 0
+            if array.get(sw_hi_b, i) < win_start
+                line rm_ln = array.get(sw_hi_ln, i)
+                label rm_lb = array.get(sw_hi_lb, i)
+                array.remove(sw_hi, i)
+                array.remove(sw_hi_b, i)
+                array.remove(sw_hi_t, i)
+                array.remove(sw_hi_ln, i)
+                array.remove(sw_hi_lb, i)
+                if not na(rm_ln)
+                    line.delete(rm_ln)
+                if not na(rm_lb)
+                    label.delete(rm_lb)
+    if array.size(sw_lo) > 0
+        for i = array.size(sw_lo) - 1 to 0
+            if array.get(sw_lo_b, i) < win_start
+                line rm_ln = array.get(sw_lo_ln, i)
+                label rm_lb = array.get(sw_lo_lb, i)
+                array.remove(sw_lo, i)
+                array.remove(sw_lo_b, i)
+                array.remove(sw_lo_t, i)
+                array.remove(sw_lo_ln, i)
+                array.remove(sw_lo_lb, i)
+                if not na(rm_ln)
+                    line.delete(rm_ln)
+                if not na(rm_lb)
+                    label.delete(rm_lb)
+
+    // Independent ATR for swing clustering (default 10) - the Relevance Filter
+    // keeps its own atr_len; swing levels separate on their own volatility scale.
+    float sw_atr = ta.atr(swing_atr_len)
+    float thresh = sw_atr * atr_mult
+
+    // Cluster swing highs - keep the most extreme (highest) per ATR cluster
+    int nh = array.size(sw_hi)
+    bool[] keep_h = array.new_bool(nh, true)
+    if thresh > 0 and nh > 1
+        for i = 0 to nh - 2
+            if array.get(keep_h, i)
+                float hpi = array.get(sw_hi, i)
+                for j = i + 1 to nh - 1
+                    if array.get(keep_h, j) and math.abs(hpi - array.get(sw_hi, j)) <= thresh
+                        if hpi >= array.get(sw_hi, j)
+                            array.set(keep_h, j, false)
+                        else
+                            array.set(keep_h, i, false)
+                            break
+
+    // Cap displayed swing highs: keep only the swing_max_levels most extreme (highest)
+    if nh > 0
+        int kept_h = 0
+        for i = 0 to nh - 1
+            if array.get(keep_h, i)
+                kept_h += 1
+        while kept_h > swing_max_levels
+            int drop_h = -1
+            float low_h = 1e15
+            for i = 0 to nh - 1
+                if array.get(keep_h, i) and array.get(sw_hi, i) < low_h
+                    low_h := array.get(sw_hi, i)
+                    drop_h := i
+            if drop_h >= 0
+                array.set(keep_h, drop_h, false)
+            kept_h -= 1
+
+    // Cluster swing lows - keep the most extreme (lowest) per ATR cluster
+    int nl = array.size(sw_lo)
+    bool[] keep_l = array.new_bool(nl, true)
+    if thresh > 0 and nl > 1
+        for i = 0 to nl - 2
+            if array.get(keep_l, i)
+                float lpi = array.get(sw_lo, i)
+                for j = i + 1 to nl - 1
+                    if array.get(keep_l, j) and math.abs(lpi - array.get(sw_lo, j)) <= thresh
+                        if lpi <= array.get(sw_lo, j)
+                            array.set(keep_l, j, false)
+                        else
+                            array.set(keep_l, i, false)
+                            break
+
+    // Cap displayed swing lows: keep only the swing_max_levels most extreme (lowest)
+    if nl > 0
+        int kept_l = 0
+        for i = 0 to nl - 1
+            if array.get(keep_l, i)
+                kept_l += 1
+        while kept_l > swing_max_levels
+            int drop_l = -1
+            float high_l = -1e15
+            for i = 0 to nl - 1
+                if array.get(keep_l, i) and array.get(sw_lo, i) > high_l
+                    high_l := array.get(sw_lo, i)
+                    drop_l := i
+            if drop_l >= 0
+                array.set(keep_l, drop_l, false)
+            kept_l -= 1
+
+    // Draw surviving swing highs (✕ on sweep; the level line is NEVER deleted -
+    // it freezes in place, matching the sessions philosophy)
+    if nh > 0
+        for i = nh - 1 to 0
+            if array.get(keep_h, i)
+                float lvl = array.get(sw_hi, i)
+                int   pt  = array.get(sw_hi_t, i)
+                line  nln = array.get(sw_hi_ln, i)
+                label nlb = array.get(sw_hi_lb, i)
+                if high >= lvl and high[1] < lvl
+                    array.remove(sw_hi, i)
+                    array.remove(sw_hi_b, i)
+                    array.remove(sw_hi_t, i)
+                    array.remove(sw_hi_ln, i)
+                    array.remove(sw_hi_lb, i)
+                    f_touch_mark(lvl, 6, pt)
+                else
+                    line.set_x2(nln, bar_index)
+                    if not na(nlb)
+                        label.set_x(nlb, bar_index)
+                    f_rc_register(nln, nlb, lvl, 6, swing_color, pt, false)
+
+    // Draw surviving swing lows (✕ on sweep; the level line is NEVER deleted)
+    if nl > 0
+        for i = nl - 1 to 0
+            if array.get(keep_l, i)
+                float lvl = array.get(sw_lo, i)
+                int   pt  = array.get(sw_lo_t, i)
+                line  nln = array.get(sw_lo_ln, i)
+                label nlb = array.get(sw_lo_lb, i)
+                if low <= lvl and low[1] > lvl
+                    array.remove(sw_lo, i)
+                    array.remove(sw_lo_b, i)
+                    array.remove(sw_lo_t, i)
+                    array.remove(sw_lo_ln, i)
+                    array.remove(sw_lo_lb, i)
+                    f_touch_mark(lvl, 6, pt)
+                else
+                    line.set_x2(nln, bar_index)
+                    if not na(nlb)
+                        label.set_x(nlb, bar_index)
+                    f_rc_register(nln, nlb, lvl, 6, swing_color, pt, false)
+
+// ============================================================
+// REGISTER PURGED LEVELS + RUN RECONCILIATION LAST
+// (purged lines stay in the declutter engine, so the ATR relevance
+// filter hides them too when they sit inside a higher-priority level)
+// ============================================================
+if array.size(prg_ln) > 0
+    for i = 0 to array.size(prg_ln) - 1
+        f_rc_register(array.get(prg_ln, i), array.get(prg_lb, i), array.get(prg_price, i), array.get(prg_prio, i), array.get(prg_color, i), array.get(prg_time, i), true)
+
+f_rc_reconcile(mark_relevant_only, atr_val, atr_mult)
+
+alertcondition(true, "Liquidity Suite update", "Liquidity Suite running")
