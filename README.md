@@ -8,8 +8,11 @@ A professional **TradingView Pine Script v6** indicator that combines Higher Tim
 Designed for traders who rely on **multi-timeframe analysis** and ICT/Smart Money concepts, HTF SUITE provides institutional market context without requiring multiple indicators.
 
 ---
-<img width="1815" height="866" alt="image" src="https://github.com/user-attachments/assets/000b4ef8-27e9-4091-9db9-9d4ca275e23e" />
-<img width="1815" height="866" alt="image" src="https://github.com/user-attachments/assets/56270cc7-f4b9-4c31-ac37-b6f902a23d8c" />
+
+<img width="1815" height="926" alt="image" src="https://github.com/user-attachments/assets/ee33db38-6e03-4517-9b1c-cd71aef341ca" />
+<img width="1815" height="926" alt="image" src="https://github.com/user-attachments/assets/4166651a-f655-4b78-a682-47359d51cdbe" />
+
+
 
 
 
