@@ -266,6 +266,16 @@ type kz_helper
     string hi_txt
     string lo_txt
 
+// One HTF FVG box (visual layer)
+type PoiFVG
+    box fvg_box
+    line midline              = na
+    label fvg_label           = na
+    float top
+    float bottom
+    bool is_bullish
+    int start_time
+
 // ============================================================================
 
 Settings settings = Settings.new()
@@ -283,6 +293,9 @@ htf.trace := Trace.new()
 
 // ── HTF2: independent preview-only timeframe (never feeds C2/CISD/setups) ──
 var array<Candle> htf2_candles = array.new<Candle>()
+
+// ── FVG state (visual layer) ────────────────────────────────────────────────
+var array<PoiFVG> fvg_list = array.new<PoiFVG>()
 
 // Initialize drawing bin
 var DrawingBin bin = DrawingBin.new(
@@ -749,9 +762,12 @@ if proj_deviations.size() == 0
 string group_liquidity          = "Formation Liquidity  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 liq_show_input                  = input.bool(true, 'Enable', inline='liq_style', group=group_liquidity)
 settings.liq_show               := liq_show_input
-settings.liq_color              := input.color(color.rgb(0, 0, 0), '', inline='liq_style', group=group_liquidity, active = liq_show_input)
-settings.liq_style              := input.string('Dotted', '', options=['Solid', 'Dashed', 'Dotted'], inline='liq_style', group=group_liquidity, active = liq_show_input)
-settings.liq_width              := input.int(1, 'Width', options=[1, 2, 3, 4], inline='liq_style', group=group_liquidity, active = liq_show_input)
+liq_color_input                 = input.color(color.rgb(0, 0, 0), '', inline='liq_style', group=group_liquidity, active = liq_show_input)
+liq_style_input                 = input.string('Dotted', '', options=['Solid', 'Dashed', 'Dotted'], inline='liq_style', group=group_liquidity, active = liq_show_input)
+liq_width_input                 = input.int(1, 'Width', options=[1, 2, 3, 4], inline='liq_style', group=group_liquidity, active = liq_show_input)
+settings.liq_color              := liq_color_input
+settings.liq_style              := liq_style_input
+settings.liq_width              := liq_width_input
 
 // ============================================================================
 // Liquidity Suite — Sessions + BSL/SSL + PD/PW/PM + TDO + Swings (visual layer)
@@ -940,9 +956,27 @@ settings.dow_color              := input.color(color.rgb(0, 0, 0), '', group=gro
 settings.dow_size               := input.string(size.small, '', [size.tiny, size.small, size.normal, size.large, size.huge], group=group_label, inline = 'dow', active = daily_name_input)
 settings.dow_position           := input.string('Bottom', 'Pos', options=['Both', 'Top', 'Bottom'], group=group_label, inline = 'dow', active = daily_name_input)
 
+// ============================================================================
+// FVG — HTF Fair Value Gap (3-candle imbalance) — visual layer
+// ============================================================================
 fvg_show_input                  = input.bool(true, 'Fair Value Gap', group = group_imbalance, inline = 'fvg')
+fvg_auto_mode_input             = input.bool(true, 'Auto Mode', group = group_imbalance, inline = 'fvg_auto', tooltip = 'Automatically select the HTF based on the current chart timeframe.')
+fvg_manual_htf_input            = input.timeframe('D', 'Manual HTF', group = group_imbalance, inline = 'fvg_auto', active = fvg_show_input and not fvg_auto_mode_input)
+fvg_show_bull_input             = input.bool(true, 'Bullish FVG', group = group_imbalance, inline = 'fvg_bull', active = fvg_show_input)
+fvg_bull_color_input            = input.color(color.new(#808080, 90), 'Color', group = group_imbalance, inline = 'fvg_bull', active = fvg_show_input and fvg_show_bull_input)
+fvg_show_bear_input             = input.bool(true, 'Bearish FVG', group = group_imbalance, inline = 'fvg_bear', active = fvg_show_input)
+fvg_bear_color_input            = input.color(color.new(#808080, 90), 'Color', group = group_imbalance, inline = 'fvg_bear', active = fvg_show_input and fvg_show_bear_input)
+fvg_show_midline_input          = input.bool(false, 'Show Midline', group = group_imbalance, inline = 'fvg_mid', active = fvg_show_input)
+fvg_midline_color_input         = input.color(color.new(color.gray, 75), 'Color', group = group_imbalance, inline = 'fvg_mid', active = fvg_show_input and fvg_show_midline_input)
+fvg_midline_style_input         = input.string('Dotted', 'Style', options = ['Solid', 'Dashed', 'Dotted'], group = group_imbalance, inline = 'fvg_mid', active = fvg_show_input and fvg_show_midline_input)
+fvg_midline_width_input         = input.int(1, 'Width', group = group_imbalance, inline = 'fvg_mid', minval = 1, maxval = 5, active = fvg_show_input and fvg_show_midline_input)
+fvg_show_labels_input           = input.bool(true, 'Show Labels', group = group_imbalance, inline = 'fvg_lbl', active = fvg_show_input)
+fvg_label_size_input            = input.string('Small', 'Size', options = ['Tiny', 'Small', 'Normal', 'Large', 'Huge'], group = group_imbalance, inline = 'fvg_lbl', active = fvg_show_input and fvg_show_labels_input)
+fvg_label_color_input           = input.color(color.gray, 'Color', group = group_imbalance, inline = 'fvg_lbl', active = fvg_show_input and fvg_show_labels_input)
+fvg_show_boxes_input            = input.bool(true, 'Show FVG Boxes', group = group_imbalance, active = fvg_show_input)
+fvg_max_fvgs_input              = input.int(3, 'Max FVGs to Keep', group = group_imbalance, minval = 1, maxval = 100, active = fvg_show_input)
 settings.fvg_show               := fvg_show_input
-settings.fvg_color              := input.color(color.new(color.gray, 80), '', inline = 'fvg', group = group_imbalance, active = fvg_show_input)
+settings.fvg_color              := fvg_bull_color_input
 
 // ============================================================================
 // Dashboard
@@ -971,6 +1005,77 @@ LabelSize(string lbl_size) =>
         'Large' => size.large
         'Huge' => size.huge
         => size.small
+
+// FVG helpers — HTF auto-selection, TF formatting, 3-candle imbalance detection
+fvg_get_htf_period() =>
+    int s = timeframe.in_seconds()
+    switch
+        s <= 15    => "5"
+        s <= 60    => "15"
+        s <= 180   => "30"
+        s <= 300   => "60"
+        s <= 600   => "150"
+        s <= 900   => "240"
+        s <= 1800  => "1D"
+        s <= 2700  => "720"
+        s <= 3600  => "1D"
+        s <= 7200  => "2D"
+        s <= 14400 => "1W"
+        s <= 21600 => "4D"
+        s <= 43200 => "1W"
+        s <= 86400 => "15D"
+        s <= 259200 => "45D"
+        s <= 604800 => "15W"
+        s <= 2592000 => "15M"
+        => "45M"
+
+fvg_format_tf(string tf) =>
+    float s = timeframe.in_seconds(tf)
+    string result = ""
+    if s < 60
+        result := str.tostring(s) + "S"
+    else if (s / 60) < 60
+        result := str.tostring(math.round(s / 60)) + "M"
+    else if (s / 3600) < 24
+        result := str.tostring(math.round(s / 3600)) + "H"
+    else if (s / 86400) < 7
+        result := str.tostring(math.round(s / 86400)) + "D"
+    else if (s / 604800) < 4
+        result := str.tostring(math.round(s / 604800)) + "W"
+    else if (s / 2592000) < 12
+        result := str.tostring(math.round(s / 2592000)) + "M"
+    else
+        result := str.tostring(math.round(s / 31536000)) + "Y"
+    result
+
+fvg_detect() =>
+    bool has_bear = false
+    bool has_bull = false
+    float bear_bot = na
+    float bear_top = na
+    float bull_bot = na
+    float bull_top = na
+    int t_val = na
+    int t2_val = na
+    if barstate.isconfirmed
+        float h0 = high[0]
+        float l0 = low[0]
+        float h2 = high[2]
+        float l2 = low[2]
+        int t0 = time[0]
+        if not na(l2) and h0 < l2
+            has_bear := true
+            bear_bot := h0
+            bear_top := l2
+            t_val := t0
+            t2_val := time[2]
+        if not na(h2) and l0 > h2
+            has_bull := true
+            bull_bot := h2
+            bull_top := l0
+            t_val := t0
+            t2_val := time[2]
+    [has_bear, has_bull, bear_bot, bear_top, bull_bot, bull_top, t_val, t2_val]
 
 DayofWeek(int index) =>
     switch
@@ -2779,8 +2884,8 @@ method DrawCandles(CandleSet candleSet) =>
     for [i, candle] in candleSet.candles
         bull = candle.c > candle.o
         bin.boxes.push(box.new(candle.candle_left, math.max(candle.o, candle.c), candle.candle_right, math.min(candle.o, candle.c), bull ? settings.bull_border : settings.bear_border, 1, bgcolor = bull ? settings.bull_body : settings.bear_body))
-        bin.lines.push(line.new(candle.wick_x, candle.h, candle.wick_x, math.max(candle.o, candle.c), color = bull ? settings.bull_wick : settings.bear_wick))
-        bin.lines.push(line.new(candle.wick_x, math.min(candle.o, candle.c), candle.wick_x, candle.l, color = bull ? settings.bull_wick : settings.bear_wick))
+        bin.lines.push(line.new(candle.wick_x, candle.h, candle.wick_x, math.max(candle.o, candle.c), xloc = xloc.bar_index, color = bull ? settings.bull_wick : settings.bear_wick))
+        bin.lines.push(line.new(candle.wick_x, math.min(candle.o, candle.c), candle.wick_x, candle.l, xloc = xloc.bar_index, color = bull ? settings.bull_wick : settings.bear_wick))
         if settings.daily_name and candle.dow != ''
             if settings.dow_position == 'Both' or settings.dow_position == 'Top'
                 bin.labels.push(label.new(candle.wick_x, candle.h, candle.dow, color = color_transparent, textcolor = settings.dow_color, style = label.style_label_down, size = settings.dow_size))
@@ -2855,8 +2960,8 @@ method DrawHTF2(array<Candle> h2_candles, int offset) =>
             int c_wick = base2 + settings.width / 2 + t_buffer
             bool bull = candle.c > candle.o
             bin.boxes.push(box.new(c_left, math.max(candle.o, candle.c), c_right, math.min(candle.o, candle.c), bull ? settings.bull_border : settings.bear_border, 1, bgcolor = bull ? settings.bull_body : settings.bear_body))
-            bin.lines.push(line.new(c_wick, candle.h, c_wick, math.max(candle.o, candle.c), color = bull ? settings.bull_wick : settings.bear_wick))
-            bin.lines.push(line.new(c_wick, math.min(candle.o, candle.c), c_wick, candle.l, color = bull ? settings.bull_wick : settings.bear_wick))
+            bin.lines.push(line.new(c_wick, candle.h, c_wick, math.max(candle.o, candle.c), xloc = xloc.bar_index, color = bull ? settings.bull_wick : settings.bear_wick))
+            bin.lines.push(line.new(c_wick, math.min(candle.o, candle.c), c_wick, candle.l, xloc = xloc.bar_index, color = bull ? settings.bull_wick : settings.bear_wick))
         // HTF2 Labels
         if htf2_label_show_input
             float h2_top = h2_candles.get(0).h
@@ -3230,6 +3335,98 @@ bool should_run_monitor = isNewHTFCandle or not calculate_on_close or barstate.i
 
 bool valid_htf = ValidTimeframe(htf.settings.htf)
 bin.clear()
+
+// ============================================================================
+// FVG Engine — HTF Fair Value Gap (3-candle imbalance) — visual layer
+// request.security calls MUST be top-level (Pine constraint), so they run
+// unconditionally every bar; fvg_show_input only gates drawing.
+// ============================================================================
+string fvg_htf = fvg_auto_mode_input ? fvg_get_htf_period() : fvg_manual_htf_input
+bool fvg_new_period = ta.change(time(fvg_htf)) != 0
+[fvg_has_bear, fvg_has_bull, fvg_bear_bot, fvg_bear_top, fvg_bull_bot, fvg_bull_top, fvg_t1, fvg_t2] = request.security(syminfo.tickerid, fvg_htf, fvg_detect(), lookahead = barmerge.lookahead_off)
+float fvg_close_val = request.security(syminfo.tickerid, fvg_htf, close, lookahead = barmerge.lookahead_off)
+
+if fvg_new_period and not na(fvg_t1)
+    string fvg_tf_str = fvg_format_tf(fvg_htf)
+    if fvg_show_bear_input and fvg_has_bear and not na(fvg_bear_bot) and not na(fvg_bear_top)
+        bool exists_bear = false
+        if fvg_list.size() > 0
+            for fi = 0 to fvg_list.size() - 1
+                PoiFVG item = fvg_list.get(fi)
+                if not item.is_bullish and item.top == fvg_bear_top and item.bottom == fvg_bear_bot
+                    exists_bear := true
+        if not exists_bear
+            box b_fvg = na
+            line l_fvg = na
+            label lbl_fvg = na
+            float mid_p = (fvg_bear_top + fvg_bear_bot) / 2
+            color box_clr = fvg_show_input ? fvg_bear_color_input : color.new(fvg_bear_color_input, 100)
+            if fvg_show_boxes_input
+                b_fvg := box.new(fvg_t2, fvg_bear_top, time, fvg_bear_bot, bgcolor = box_clr, border_color = color.new(color.gray, 100), xloc = xloc.bar_time)
+                if fvg_show_midline_input
+                    l_fvg := line.new(fvg_t2, mid_p, time, mid_p, color = fvg_show_input ? fvg_midline_color_input : color.new(fvg_midline_color_input, 100), style = LineStyle(fvg_midline_style_input), width = fvg_midline_width_input, xloc = xloc.bar_time)
+            if fvg_show_labels_input
+                lbl_fvg := label.new(time, mid_p, "FVG-" + fvg_tf_str, color = color.new(color.white, 100), textcolor = fvg_show_input ? fvg_label_color_input : color.new(fvg_label_color_input, 100), style = label.style_label_right, size = LabelSize(fvg_label_size_input), xloc = xloc.bar_time)
+            fvg_list.push(PoiFVG.new(b_fvg, l_fvg, lbl_fvg, fvg_bear_top, fvg_bear_bot, false, fvg_t2))
+    if fvg_show_bull_input and fvg_has_bull and not na(fvg_bull_bot) and not na(fvg_bull_top)
+        bool exists_bull = false
+        if fvg_list.size() > 0
+            for fj = 0 to fvg_list.size() - 1
+                PoiFVG item2 = fvg_list.get(fj)
+                if item2.is_bullish and item2.top == fvg_bull_top and item2.bottom == fvg_bull_bot
+                    exists_bull := true
+        if not exists_bull
+            box b_fvg2 = na
+            line l_fvg2 = na
+            label lbl_fvg2 = na
+            float mid_p2 = (fvg_bull_top + fvg_bull_bot) / 2
+            color box_clr2 = fvg_show_input ? fvg_bull_color_input : color.new(fvg_bull_color_input, 100)
+            if fvg_show_boxes_input
+                b_fvg2 := box.new(fvg_t2, fvg_bull_top, time, fvg_bull_bot, bgcolor = box_clr2, border_color = color.new(color.gray, 100), xloc = xloc.bar_time)
+                if fvg_show_midline_input
+                    l_fvg2 := line.new(fvg_t2, mid_p2, time, mid_p2, color = fvg_show_input ? fvg_midline_color_input : color.new(fvg_midline_color_input, 100), style = LineStyle(fvg_midline_style_input), width = fvg_midline_width_input, xloc = xloc.bar_time)
+            if fvg_show_labels_input
+                lbl_fvg2 := label.new(time, mid_p2, "FVG+" + fvg_tf_str, color = color.new(color.white, 100), textcolor = fvg_show_input ? fvg_label_color_input : color.new(fvg_label_color_input, 100), style = label.style_label_right, size = LabelSize(fvg_label_size_input), xloc = xloc.bar_time)
+            fvg_list.push(PoiFVG.new(b_fvg2, l_fvg2, lbl_fvg2, fvg_bull_top, fvg_bull_bot, true, fvg_t2))
+
+if fvg_new_period and fvg_list.size() > 0
+    for fk = fvg_list.size() - 1 to 0 by 1
+        PoiFVG f = fvg_list.get(fk)
+        bool fvg_invalid = f.is_bullish ? (fvg_close_val < f.bottom) : (fvg_close_val > f.top)
+        if fvg_invalid
+            if not na(f.fvg_box)
+                box.delete(f.fvg_box)
+            if not na(f.midline)
+                line.delete(f.midline)
+            if not na(f.fvg_label)
+                label.delete(f.fvg_label)
+            fvg_list.remove(fk)
+
+if fvg_list.size() > 0
+    for fm = 0 to fvg_list.size() - 1
+        PoiFVG f = fvg_list.get(fm)
+        color box_clr3 = fvg_show_input ? (f.is_bullish ? fvg_bull_color_input : fvg_bear_color_input) : color.new(f.is_bullish ? fvg_bull_color_input : fvg_bear_color_input, 100)
+        if not na(f.fvg_box)
+            box.set_bgcolor(f.fvg_box, box_clr3)
+            box.set_border_color(f.fvg_box, fvg_show_input ? color.new(color.gray, 100) : color.new(color.white, 100))
+            box.set_right(f.fvg_box, time)
+        if not na(f.midline)
+            line.set_color(f.midline, fvg_show_input ? fvg_midline_color_input : color.new(fvg_midline_color_input, 100))
+            line.set_x2(f.midline, time)
+        if not na(f.fvg_label)
+            label.set_textcolor(f.fvg_label, fvg_show_input ? fvg_label_color_input : color.new(fvg_label_color_input, 100))
+            label.set_x(f.fvg_label, time)
+
+int fvg_total_fvgs = fvg_list.size()
+if fvg_total_fvgs > fvg_max_fvgs_input
+    for fn = 0 to (fvg_total_fvgs - fvg_max_fvgs_input) - 1
+        PoiFVG old_fvg = fvg_list.shift()
+        if not na(old_fvg.fvg_box)
+            box.delete(old_fvg.fvg_box)
+        if not na(old_fvg.midline)
+            line.delete(old_fvg.midline)
+        if not na(old_fvg.fvg_label)
+            label.delete(old_fvg.fvg_label)
 
 // ============================================================================
 // Main Execution — HTF Data Collection + Drawing
