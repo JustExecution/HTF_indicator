@@ -11,6 +11,8 @@ If you find it useful and would like to support its development, you can make a 
 > **No pressure.** Your support is appreciated, but simply using the project, starring the repository ⭐, reporting bugs, or contributing code is already a huge help.
 
 ---
+##### How to add indicator to Tradingview
+https://x.com/JustExecution/status/2095804801099632955?s=20
 
 ## 💖 Donate with USDT
 
